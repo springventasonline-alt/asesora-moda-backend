@@ -42,6 +42,25 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(
+  '/widget',
+  express.static(path.join(__dirname, 'public/widget'), {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      }
+    },
+  })
+);
+
+app.get('/widget/install', (req, res) => {
+  res.json({
+    script_url: `${APP_URL}/widget/asesora.js`,
+    popup_url: `${APP_URL}/widget/popup.html`,
+    oauth_install: `${APP_URL}/auth/install`,
+    health: `${APP_URL}/health`,
+  });
+});
 
 app.get('/health', (req, res) => {
   res.json({

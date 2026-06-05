@@ -50,6 +50,15 @@ Etiquetá cada producto en el admin de Tiendanube con tags separados por coma.
 - `altura-baja`, `altura-media`, `altura-alta`
 - `todas-las-alturas` o `universal` — aplica a todos
 
+## Script tag Tiendanube
+
+Ver **[SCRIPTS.md](./SCRIPTS.md)** para configurar el widget en Partner Portal.
+
+URL del script:
+```
+https://TU-APP.up.railway.app/widget/asesora.js
+```
+
 ## Frontend HTML
 
 Desde el HTML estático, llamá al backend con `fetch`:
