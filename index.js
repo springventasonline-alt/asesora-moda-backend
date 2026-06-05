@@ -258,7 +258,7 @@ function saveStores(data) {
 function buildTags({ tipo_cuerpo, estilo, altura }) {
   const tags = [];
   if (tipo_cuerpo) tags.push(`tipo-${String(tipo_cuerpo).toLowerCase()}`);
-  if (estilo) tags.push(String(estilo).toLowerCase());
+  if (estilo) tags.push(normalizeEstilo(estilo));
   if (altura) tags.push(`altura-${String(altura).toLowerCase()}`);
   return tags;
 }
@@ -275,7 +275,21 @@ function hasAnyTag(tags, candidates) {
   return candidates.some((candidate) => tags.includes(candidate));
 }
 
+const ESTILO_ALIASES = {
+  arreglada: 'elegante',
+  elegante: 'elegante',
+  romantica: 'romantica',
+  romántica: 'romantica',
+};
+
+function normalizeEstilo(estilo) {
+  const key = String(estilo || '').toLowerCase();
+  return ESTILO_ALIASES[key] || key;
+}
+
 function filterByProfile(products, { tipo_cuerpo, estilo, altura }) {
+  const estiloTag = normalizeEstilo(estilo);
+
   return products.filter((product) => {
     const tags = normalizeTags(product.tags);
 
@@ -288,8 +302,8 @@ function filterByProfile(products, { tipo_cuerpo, estilo, altura }) {
       ]);
 
     const matchesEstilo =
-      !estilo ||
-      hasAnyTag(tags, [String(estilo).toLowerCase(), 'todos-los-estilos']);
+      !estiloTag ||
+      hasAnyTag(tags, [estiloTag, 'todos-los-estilos']);
 
     const matchesAltura =
       !altura ||
