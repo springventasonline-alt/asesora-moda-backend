@@ -79,6 +79,12 @@ app.get('/', (req, res) => {
     status: 'Asesora de Moda Backend funcionando',
     stores_conectadas: Object.keys(stores).length,
     install_url: CLIENT_ID ? `${APP_URL}/auth/install` : null,
+    install_demo: CLIENT_ID
+      ? `${APP_URL}/auth/install?store=springdemo.mitiendanube.com`
+      : null,
+    install_spring: CLIENT_ID
+      ? `${APP_URL}/auth/install?store=spring29.mitiendanube.com`
+      : null,
   });
 });
 
@@ -101,6 +107,25 @@ app.get('/auth/install', (req, res) => {
   }
 
   const query = params.toString();
+  const storeDomain = (req.query.store || req.query.domain || '')
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+
+  // Instalar en una tienda específica (recomendado para tienda demo del Partner Portal)
+  if (storeDomain) {
+    if (!/^[a-z0-9-]+\.mitiendanube\.com$/i.test(storeDomain)) {
+      return res.status(400).json({
+        error: 'Dominio de tienda inválido',
+        example: `${APP_URL}/auth/install?store=springdemo.mitiendanube.com`,
+      });
+    }
+
+    const authorizeUrl = `https://${storeDomain}/admin/apps/${CLIENT_ID}/authorize${query ? `?${query}` : ''}`;
+    console.log(`OAuth install (tienda ${storeDomain}) → ${authorizeUrl}`);
+    return res.redirect(302, authorizeUrl);
+  }
+
   const authorizeUrl = `https://www.tiendanube.com/apps/${CLIENT_ID}/authorize${query ? `?${query}` : ''}`;
 
   console.log(`OAuth install → ${authorizeUrl}`);
