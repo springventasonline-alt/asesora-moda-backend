@@ -17,6 +17,14 @@ const TN_SCRIPT_ID = (process.env.TN_SCRIPT_ID || '7169').trim();
 const TN_SCRIPT_AUTO_INSTALL = process.env.TN_SCRIPT_AUTO_INSTALL !== 'false';
 const INSTALL_SECRET = (process.env.INSTALL_SECRET || '').trim();
 const SETUP_KEY = (process.env.SETUP_KEY || 'springdemo-7793118-setup').trim();
+const RAILWAY_GRAPHQL_URL = 'https://backboard.railway.com/graphql/v2';
+const RAILWAY_PROJECT_ID = (
+  process.env.RAILWAY_PROJECT_ID || 'c6d8f12d-2f4d-4c90-8028-639da0141fd2'
+).trim();
+const RAILWAY_ENVIRONMENT_ID = (process.env.RAILWAY_ENVIRONMENT_ID || '').trim();
+const RAILWAY_SERVICE_ID = (process.env.RAILWAY_SERVICE_ID || '').trim();
+const RAILWAY_API_TOKEN = (process.env.RAILWAY_API_TOKEN || '').trim();
+const RAILWAY_TOKEN = (process.env.RAILWAY_TOKEN || '').trim();
 const DEMO_STORE_ID = '7793118';
 const DEMO_STORE_DOMAIN = 'springdemo.mitiendanube.com';
 
@@ -63,6 +71,13 @@ app.get('/health', (req, res) => {
     stores: Object.keys(stores).length,
     oauthConfigured: Boolean(CLIENT_ID && CLIENT_SECRET),
     clientIdValid: /^\d+$/.test(CLIENT_ID),
+    railway: {
+      project_id: RAILWAY_PROJECT_ID || null,
+      environment_id: RAILWAY_ENVIRONMENT_ID || null,
+      service_id: RAILWAY_SERVICE_ID || null,
+      has_api_token: Boolean(RAILWAY_API_TOKEN),
+      has_project_token: Boolean(RAILWAY_TOKEN),
+    },
   });
 });
 
@@ -317,6 +332,40 @@ app.get('/auth/setup/token/:store_id', (req, res) => {
   });
 });
 
+app.post('/auth/setup/persist-railway', async (req, res) => {
+  const setupKey = String(req.query.key || req.body?.key || req.headers['x-setup-key'] || '').trim();
+  if (!SETUP_KEY || setupKey !== SETUP_KEY) {
+    return res.status(403).json({ error: 'Setup key inválida' });
+  }
+
+  const storesJson = buildStoresJsonFromMemory();
+  if (!Object.keys(storesJson).length) {
+    return res.status(404).json({
+      error: 'No hay tokens OAuth en memoria',
+      hint: 'Reconectá la tienda con /auth/install?store=spring29.mitiendanube.com',
+    });
+  }
+
+  try {
+    const result = await persistTnStoresJsonToRailway(JSON.stringify(storesJson));
+    res.json({
+      ok: true,
+      variable: 'TN_STORES_JSON',
+      stores: Object.keys(storesJson),
+      ...result,
+    });
+  } catch (err) {
+    console.error('Error en /auth/setup/persist-railway:', err);
+    res.status(502).json({
+      ok: false,
+      error: err.message,
+      tn_stores_json: JSON.stringify(storesJson),
+      hint:
+        'Configurá RAILWAY_API_TOKEN (account) o RAILWAY_TOKEN (project) en el servicio, o ejecutá: railway variable set TN_STORES_JSON=... --stdin',
+    });
+  }
+});
+
 app.get('/auth/callback', async (req, res) => {
   const code = req.query.code ? String(req.query.code) : '';
 
@@ -519,6 +568,108 @@ function normalizeStoreDomain(value) {
     .trim()
     .replace(/^https?:\/\//, '')
     .replace(/\/.*$/, '');
+}
+
+function buildStoresJsonFromMemory() {
+  const storesJson = {};
+  Object.entries(stores).forEach(([id, entry]) => {
+    if (entry?.access_token) storesJson[id] = entry.access_token;
+  });
+  return storesJson;
+}
+
+async function railwayGraphql(query, variables, auth) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth.type === 'project') {
+    headers['Project-Access-Token'] = auth.token;
+  } else {
+    headers.Authorization = `Bearer ${auth.token}`;
+  }
+
+  const response = await fetch(RAILWAY_GRAPHQL_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query, variables }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Railway GraphQL HTTP ${response.status}: ${JSON.stringify(payload)}`);
+  }
+  if (payload.errors?.length) {
+    throw new Error(payload.errors.map((item) => item.message).join('; '));
+  }
+  return payload.data;
+}
+
+async function resolveRailwayTargets(auth) {
+  if (auth.type === 'project') {
+    const data = await railwayGraphql(
+      'query { projectToken { projectId environmentId } }',
+      {},
+      auth,
+    );
+    return {
+      projectId: data?.projectToken?.projectId || RAILWAY_PROJECT_ID,
+      environmentId: data?.projectToken?.environmentId || RAILWAY_ENVIRONMENT_ID,
+      serviceId: RAILWAY_SERVICE_ID || null,
+    };
+  }
+
+  return {
+    projectId: RAILWAY_PROJECT_ID,
+    environmentId: RAILWAY_ENVIRONMENT_ID,
+    serviceId: RAILWAY_SERVICE_ID || null,
+  };
+}
+
+async function persistTnStoresJsonToRailway(value) {
+  const authCandidates = [];
+  if (RAILWAY_API_TOKEN) authCandidates.push({ type: 'account', token: RAILWAY_API_TOKEN });
+  if (RAILWAY_TOKEN) authCandidates.push({ type: 'project', token: RAILWAY_TOKEN });
+
+  if (!authCandidates.length) {
+    throw new Error('Falta RAILWAY_API_TOKEN o RAILWAY_TOKEN en variables de entorno del servicio');
+  }
+
+  let lastError = null;
+  for (const auth of authCandidates) {
+    try {
+      const targets = await resolveRailwayTargets(auth);
+      if (!targets.projectId || !targets.environmentId) {
+        throw new Error('No se pudo resolver projectId/environmentId para Railway');
+      }
+
+      const input = {
+        projectId: targets.projectId,
+        environmentId: targets.environmentId,
+        name: 'TN_STORES_JSON',
+        value,
+        skipDeploys: false,
+      };
+      if (targets.serviceId) input.serviceId = targets.serviceId;
+
+      const data = await railwayGraphql(
+        `mutation variableUpsert($input: VariableUpsertInput!) {
+          variableUpsert(input: $input)
+        }`,
+        { input },
+        auth,
+      );
+
+      return {
+        auth: auth.type,
+        project_id: targets.projectId,
+        environment_id: targets.environmentId,
+        service_id: targets.serviceId,
+        variableUpsert: data?.variableUpsert ?? true,
+      };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('No se pudo persistir TN_STORES_JSON en Railway');
 }
 
 async function exchangeOAuthCode(code) {
