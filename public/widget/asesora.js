@@ -124,7 +124,30 @@
     if (iframe) iframe.src = 'about:blank';
   }
 
-  function mount(appBase, storeId) {
+  function fetchStoreConfig(appBase, storeId) {
+    return fetch(appBase + '/config/' + encodeURIComponent(storeId), { credentials: 'omit' })
+      .then(function (res) {
+        if (!res.ok) return {};
+        return res.json();
+      })
+      .catch(function () {
+        return {};
+      });
+  }
+
+  function applyTriggerConfig(trigger, config) {
+    if (!config || !trigger) return;
+    var label = config.trigger_text || '✨ Encontrá tu look';
+    trigger.innerHTML =
+      '<span style="width:8px;height:8px;border-radius:50%;background:' +
+      (config.color_accent || '#E8A87C') +
+      ';display:inline-block"></span><span>' +
+      label +
+      '</span>';
+    if (config.color_primary) trigger.style.background = config.color_primary;
+  }
+
+  function mount(appBase, storeId, config) {
     if (document.getElementById(ROOT_ID)) return;
 
     injectStyles();
@@ -136,8 +159,7 @@
     trigger.id = TRIGGER_ID;
     trigger.type = 'button';
     trigger.setAttribute('aria-label', 'Abrir asesora de moda');
-    trigger.innerHTML =
-      '<span style="width:8px;height:8px;border-radius:50%;background:#E8A87C;display:inline-block"></span><span>✨ Encontrá tu look</span>';
+    applyTriggerConfig(trigger, config);
     trigger.addEventListener('click', function () {
       openPopup(appBase, storeId);
     });
@@ -178,13 +200,18 @@
       console.warn('[asesora-moda] No se detectó store_id (LS.store.id ni ?store= en script)');
       return;
     }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () {
-        mount(appBase, storeId);
-      });
-    } else {
-      mount(appBase, storeId);
+
+    function start(config) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          mount(appBase, storeId, config);
+        });
+      } else {
+        mount(appBase, storeId, config);
+      }
     }
+
+    fetchStoreConfig(appBase, storeId).then(start);
   }
 
   init();

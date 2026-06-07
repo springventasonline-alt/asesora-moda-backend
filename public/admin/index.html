@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asesora de Moda — Panel de Configuración</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --dark: #0F0F1A;
+  --dark2: #1A1A2E;
+  --accent: #C8956C;
+  --accent2: #8B5E3C;
+  --cream: #FAF7F2;
+  --soft: #EDE8E0;
+  --text: #1A1A2E;
+  --muted: #888;
+  --green: #22C55E;
+  --border: rgba(0,0,0,0.08);
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: #F4F1EC;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── SIDEBAR ── */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  background: var(--dark);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.sidebar-logo {
+  padding: 1.5rem 1.5rem 1.2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sidebar-logo-text {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: white;
+  font-weight: 400;
+}
+.sidebar-logo-text span { color: var(--accent); }
+.sidebar-logo-sub {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 0.2rem;
+}
+
+.sidebar-nav { flex: 1; padding: 1rem 0; }
+.nav-section-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  padding: 0.5rem 1.5rem 0.3rem;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.04); }
+.nav-item.active { color: white; background: rgba(200,149,108,0.12); border-left-color: var(--accent); }
+.nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ── MAIN ── */
+.main { flex: 1; overflow-y: auto; }
+
+.topbar {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+.topbar-store {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.78rem; color: var(--muted);
+}
+.store-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.btn-save {
+  background: var(--accent);
+  color: white; border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.2rem;
+  font-family: var(--font-body);
+  font-size: 0.82rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-save:hover { background: var(--accent2); }
+.btn-save:disabled { background: #ccc; cursor: default; }
+
+.content { padding: 2rem; max-width: 900px; }
+
+/* ── SECTION CARD ── */
+.section-card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.section-header {
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.section-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: #FFF4EE;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.section-title { font-weight: 600; font-size: 0.9rem; }
+.section-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+.section-body { padding: 1.5rem; }
+
+/* ── FORM ── */
+.field { margin-bottom: 1.2rem; }
+.field:last-child { margin-bottom: 0; }
+.field-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+.field-hint { font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; }
+.field-input {
+  width: 100%;
+  background: #FAFAFA;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text);
+  transition: border-color 0.2s;
+  outline: none;
+}
+.field-input:focus { border-color: var(--accent); background: white; }
+.field-textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload {
+  display: flex; gap: 1.5rem; align-items: flex-start;
+}
+.photo-preview {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  background: var(--soft);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+}
+.photo-preview img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: none;
+}
+.photo-preview .photo-placeholder {
+  font-size: 2rem;
+  color: var(--muted);
+}
+.photo-preview:hover::after {
+  content: '📷';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  border-radius: 50%;
+}
+.photo-info { flex: 1; }
+.photo-info h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+.photo-info p { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin-bottom: 0.75rem; }
+.btn-upload {
+  background: var(--soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.78rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+  color: var(--text);
+}
+.btn-upload:hover { background: #e0dbd3; }
+
+/* ── VIDEO ── */
+.video-preview {
+  background: var(--dark);
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+.video-placeholder-content { text-align: center; color: rgba(255,255,255,0.3); }
+.video-placeholder-content .play { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.video-placeholder-content p { font-size: 0.75rem; }
+.video-iframe { width: 100%; height: 100%; border: none; display: none; }
+
+/* ── COLOR PICKER ── */
+.color-row { display: flex; align-items: center; gap: 0.75rem; }
+.color-swatch {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  flex-shrink: 0;
+}
+.color-swatch input[type="color"] {
+  width: 100%; height: 100%;
+  border: none; padding: 0; cursor: pointer;
+  transform: scale(1.5);
+}
+
+/* ── TOGGLE ── */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle-label h4 { font-size: 0.85rem; font-weight: 500; }
+.toggle-label p { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+.toggle {
+  width: 44px; height: 24px;
+  background: #ddd;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  border: none;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: '';
+  width: 18px; height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle.on::after { transform: translateX(20px); }
+
+/* ── PREVIEW PANEL ── */
+.preview-panel {
+  position: fixed;
+  right: 2rem; top: 5rem;
+  width: 220px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+.preview-header {
+  background: var(--dark);
+  padding: 0.75rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.preview-header-title { font-size: 0.7rem; color: rgba(255,255,255,0.5); }
+.preview-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.preview-content { padding: 1rem; }
+.preview-btn-float {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: var(--dark);
+  color: white; border-radius: 50px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.65rem; font-weight: 500;
+  margin-bottom: 0.75rem;
+  width: fit-content;
+}
+.preview-popup {
+  background: var(--cream);
+  border-radius: 10px;
+  border: 1px solid var(--soft);
+  overflow: hidden;
+}
+.preview-popup-header {
+  background: var(--dark);
+  padding: 0.5rem;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.3rem;
+}
+.preview-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--soft);
+  border: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  overflow: hidden;
+}
+.preview-avatar img { width: 100%; height: 100%; object-fit: cover; display: none; }
+.preview-name { font-size: 0.65rem; color: white; font-weight: 600; }
+.preview-role { font-size: 0.55rem; color: rgba(255,255,255,0.4); }
+.preview-popup-body { padding: 0.6rem; }
+.preview-bubble {
+  border-radius: 8px 8px 8px 2px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+.preview-popup-btn {
+  display: block; width: 100%;
+  border-radius: 50px;
+  padding: 0.4rem;
+  font-size: 0.6rem; font-weight: 600;
+  text-align: center;
+  border: none; cursor: pointer;
+}
+
+/* ── SAVE TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 2rem; left: 50%; transform: translateX(-50%);
+  background: var(--dark);
+  color: white;
+  border-radius: 50px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.82rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 100;
+}
+.toast.visible { opacity: 1; }
+
+/* ── STATUS BADGE ── */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-radius: 50px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.72rem; font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .preview-panel { display: none; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">Asesora<span>.</span></div>
+      <div class="sidebar-logo-sub">Panel de administración</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Configuración</div>
+      <div class="nav-item active" onclick="showSection('asesora')">
+        <span class="nav-icon">👩</span> Mi Asesora
+      </div>
+      <div class="nav-item" onclick="showSection('popup')">
+        <span class="nav-icon">💬</span> Popup de bienvenida
+      </div>
+      <div class="nav-item" onclick="showSection('estilo')">
+        <span class="nav-icon">🎨</span> Estilo y colores
+      </div>
+      <div class="nav-item" onclick="showSection('quiz')">
+        <span class="nav-icon">📋</span> Textos del quiz
+      </div>
+      <div class="nav-item" onclick="showSection('productos')">
+        <span class="nav-icon">🛍️</span> Productos
+      </div>
+      <div class="nav-section-label" style="margin-top:1rem">Estado</div>
+      <div class="nav-item" onclick="showSection('estado')">
+        <span class="nav-icon">📊</span> Estado de la app
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      By Pali · v1.0 · <a href="#" style="color:var(--accent);text-decoration:none">Soporte</a>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title">Configuración de la Asesora</div>
+      <div style="display:flex;align-items:center;gap:1rem">
+        <div class="topbar-store">
+          <div class="store-dot"></div>
+          <span id="store-name">Mi tienda</span>
+        </div>
+        <button class="btn-save" onclick="saveConfig()" id="btn-save">Guardar cambios</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- SECCIÓN: MI ASESORA -->
+      <div id="sec-asesora">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">👩</div>
+            <div>
+              <div class="section-title">Tu asesora personal</div>
+              <div class="section-desc">Personalizá quién recibe a tus clientas</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="photo-upload">
+              <div class="photo-preview" onclick="triggerPhotoUpload()">
+                <img id="advisor-photo-preview" src="" alt="Foto asesora">
+                <div class="photo-placeholder" id="photo-placeholder">👩</div>
+              </div>
+              <div class="photo-info">
+                <h4>Foto de la asesora</h4>
+                <p>Se muestra en el popup de bienvenida. Recomendamos una foto tuya o de tu equipo — genera más confianza que un avatar genérico.</p>
+                <button class="btn-upload" onclick="triggerPhotoUpload()">📷 Subir foto</button>
+                <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="loadPhoto(this)">
+              </div>
+            </div>
+
+            <div style="margin-top:1.5rem" class="grid-2">
+              <div class="field">
+                <label class="field-label">Nombre de la asesora</label>
+                <input type="text" class="field-input" id="advisor-name" value="Valentina" placeholder="Tu nombre" oninput="updatePreview()">
+              </div>
+              <div class="field">
+                <label class="field-label">Rol / descripción</label>
+                <input type="text" class="field-input" id="advisor-role" value="Tu asesora de moda" placeholder="Ej: Asesora de imagen" oninput="updatePreview()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIDEO -->
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">🎬</div>
+            <div>
+              <div class="section-title">Video de bienvenida</div>
+              <div class="section-desc">Un video tuyo hablando genera hasta 3x más confianza</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="video-preview" id="video-preview">
+              <div class="video-placeholder-content" id="video-placeholder">
+                <div class="play">▶</div>
+                <p>Pegá la URL de tu video de YouTube</p>
+              </div>
+              <iframe id="video-iframe" class="video-iframe" allowfullscreen></iframe>
+            </div>
+            <div class="field">
+              <label class="field-label">URL del video (YouTube)</label>
+              <input type="text" class="field-input" id="video-url" placeholder="https://youtube.com/watch?v=..." oninput="loadVideo()">
+              <div class="field-hint">Pegá el link de YouTube. También funciona con links de YouTube Shorts.</div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Mostrar video en el popup</h4>
+                <p>Si está desactivado, el popup muestra solo el mensaje</p>
+              </div>
+              <button class="toggle on" id="toggle-video" onclick="toggleSwitch(this)"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: POPUP -->
+      <div id="sec-popup" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">💬</div>
+            <div>
+              <div class="section-title">Popup de bienvenida</div>
+              <div class="section-desc">Lo primero que ven tus clientas al entrar</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="field">
+              <label class="field-label">Mensaje principal</label>
+              <textarea class="field-input field-textarea" id="welcome-msg" oninput="updatePreview()">¡Hola! 👋 Te ayudo a encontrar exactamente lo que más te favorece según tu cuerpo y estilo.</textarea>
+              <div class="field-hint">Sé cercana y directa. Este mensaje es lo primero que lee tu clienta.</div>
+            </div>
+            <div class="field">
+              <label class="field-label">Segundo mensaje</label>
+              <textarea class="field-input field-textarea" id="welcome-msg2" oninput="updatePreview()">Solo te hago unas preguntas rápidas y te armo una selección personalizada 🎯</textarea>
+            </div>
+            <div class="field">
+              <label class="field-label">Texto del botón de inicio</label>
+              <input type="text" class="field-input" id="cta-text" value="¡Empezar mi asesoramiento! →" oninput="updatePreview()">
+            </div>
+            <div class="field">
+              <label class="field-label">Texto del botón flotante</label>
+              <input type="text" class="field-input" id="trigger-text" value="✨ Encontrá tu look" oninput="updatePreview()">
+              <div class="field-hint">Este botón siempre visible en la esquina de tu tienda</div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Mostrar popup al entrar</h4>
+                <p>Si está desactivado, solo se muestra el botón flotante</p>
+              </div>
+              <button class="toggle on" id="toggle-popup" onclick="toggleSwitch(this)"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: ESTILO -->
+      <div id="sec-estilo" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">🎨</div>
+            <div>
+              <div class="section-title">Estilo y colores</div>
+              <div class="section-desc">Adaptá la asesora a tu marca</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="grid-2">
+              <div class="field">
+                <label class="field-label">Color principal</label>
+                <div class="color-row">
+                  <div class="color-swatch">
+                    <input type="color" id="color-primary" value="#1A1A2E" oninput="updatePreview()">
+                  </div>
+                  <input type="text" class="field-input" id="color-primary-text" value="#1A1A2E" style="font-family:monospace" oninput="syncColor('primary')">
+                </div>
+                <div class="field-hint">Fondo del popup y botones principales</div>
+              </div>
+              <div class="field">
+                <label class="field-label">Color de acento</label>
+                <div class="color-row">
+                  <div class="color-swatch">
+                    <input type="color" id="color-accent" value="#C8956C" oninput="updatePreview()">
+                  </div>
+                  <input type="text" class="field-input" id="color-accent-text" value="#C8956C" style="font-family:monospace" oninput="syncColor('accent')">
+                </div>
+                <div class="field-hint">Botones CTA y detalles decorativos</div>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:0.5rem">
+              <label class="field-label">Tipografía</label>
+              <select class="field-input" id="font-select" onchange="updatePreview()">
+                <option value="Cormorant Garamond">Cormorant Garamond (elegante)</option>
+                <option value="Playfair Display">Playfair Display (clásica)</option>
+                <option value="DM Sans">DM Sans (moderna)</option>
+                <option value="Georgia">Georgia (tradicional)</option>
+              </select>
+            </div>
+
+            <div class="toggle-row" style="margin-top:0.5rem">
+              <div class="toggle-label">
+                <h4>Botón flotante redondeado</h4>
+                <p>Pill shape vs. cuadrado con esquinas redondeadas</p>
+              </div>
+              <button class="toggle on" id="toggle-pill" onclick="toggleSwitch(this)"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: QUIZ -->
+      <div id="sec-quiz" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">📋</div>
+            <div>
+              <div class="section-title">Textos del quiz</div>
+              <div class="section-desc">Personalizá los mensajes de cada paso</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="field">
+              <label class="field-label">Paso 1 — Silueta (título)</label>
+              <input type="text" class="field-input" value="¿Cuál es tu silueta?">
+            </div>
+            <div class="field">
+              <label class="field-label">Paso 1 — Silueta (subtítulo)</label>
+              <input type="text" class="field-input" value="No hay una mejor que otra — cada cuerpo tiene su magia ✨">
+            </div>
+            <div class="field">
+              <label class="field-label">Paso 2 — Estatura (título)</label>
+              <input type="text" class="field-input" value="¿Cuál es tu estatura?">
+            </div>
+            <div class="field">
+              <label class="field-label">Paso 3 — Tono de piel (título)</label>
+              <input type="text" class="field-input" value="Tu tono de piel">
+            </div>
+            <div class="field">
+              <label class="field-label">Paso 5 — Estilo (título)</label>
+              <input type="text" class="field-input" value="¿Cómo te gusta vestir?">
+            </div>
+            <div class="field">
+              <label class="field-label">Resultados — CTA final</label>
+              <input type="text" class="field-input" value="¿Lista para armar tu look?">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: PRODUCTOS -->
+      <div id="sec-productos" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">🛍️</div>
+            <div>
+              <div class="section-title">Configuración de productos</div>
+              <div class="section-desc">Cómo la asesora encuentra y filtra tus productos</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div style="background:#FFF8F4;border-radius:12px;padding:1rem;margin-bottom:1.2rem;border:1px solid #F0D5C0">
+              <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.5rem;color:var(--accent2)">📌 Cómo etiquetar tus productos</div>
+              <div style="font-size:0.75rem;color:#666;line-height:1.6">
+                En el admin de tu tienda → Productos → editar producto → Etiquetas, agregá las palabras clave correspondientes:
+              </div>
+              <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:0.4rem">
+                <span style="background:#1A1A2E;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">tipo-x</span>
+                <span style="background:#1A1A2E;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">tipo-o</span>
+                <span style="background:#1A1A2E;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">tipo-h</span>
+                <span style="background:#1A1A2E;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">tipo-a</span>
+                <span style="background:#1A1A2E;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">tipo-v</span>
+                <span style="background:var(--accent);color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">casual</span>
+                <span style="background:var(--accent);color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">elegante</span>
+                <span style="background:var(--accent);color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">sport</span>
+                <span style="background:var(--accent);color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">trendy</span>
+                <span style="background:#4A7C59;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">altura-baja</span>
+                <span style="background:#4A7C59;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">altura-media</span>
+                <span style="background:#4A7C59;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">altura-alta</span>
+                <span style="background:#2980B9;color:white;border-radius:4px;padding:0.2rem 0.5rem;font-size:0.65rem;font-family:monospace">universal</span>
+              </div>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Mostrar productos sin tags</h4>
+                <p>Si activás esto, muestra todos los productos como fallback</p>
+              </div>
+              <button class="toggle" id="toggle-fallback" onclick="toggleSwitch(this)"></button>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Mostrar precio de los productos</h4>
+                <p>Visible en las tarjetas de recomendación</p>
+              </div>
+              <button class="toggle on" id="toggle-price" onclick="toggleSwitch(this)"></button>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Abrir producto en nueva pestaña</h4>
+                <p>Al hacer clic en "Ver", abre el producto en una nueva pestaña</p>
+              </div>
+              <button class="toggle on" id="toggle-newtab" onclick="toggleSwitch(this)"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN: ESTADO -->
+      <div id="sec-estado" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <div class="section-icon">📊</div>
+            <div>
+              <div class="section-title">Estado de la app</div>
+              <div class="section-desc">Conexión y funcionamiento</div>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Conexión con Tiendanube</h4>
+                <p>La app tiene acceso a tu catálogo de productos</p>
+              </div>
+              <span class="status-badge">✅ Conectada</span>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Script instalado</h4>
+                <p>El widget está activo en tu tienda</p>
+              </div>
+              <span class="status-badge">✅ Activo</span>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-label">
+                <h4>Store ID</h4>
+                <p>Identificador único de tu tienda</p>
+              </div>
+              <span style="font-family:monospace;font-size:0.8rem;color:var(--muted)" id="store-id-display">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+</div><!-- /layout -->
+
+<!-- PREVIEW PANEL -->
+<div class="preview-panel">
+  <div class="preview-header">
+    <div class="preview-dot"></div>
+    <div class="preview-header-title">Vista previa en vivo</div>
+  </div>
+  <div class="preview-content">
+    <div class="preview-btn-float" id="prev-trigger-btn">
+      ✨ <span id="prev-trigger-text">Encontrá tu look</span>
+    </div>
+    <div class="preview-popup">
+      <div class="preview-popup-header" id="prev-popup-header" style="background:#1A1A2E">
+        <div class="preview-avatar">
+          <span id="prev-avatar-emoji">👩</span>
+          <img id="prev-avatar-img" src="" alt="">
+        </div>
+        <div class="prev-name" id="prev-name" style="font-size:0.7rem;color:white;font-weight:600">Valentina</div>
+        <div style="font-size:0.55rem;color:rgba(255,255,255,0.4)" id="prev-role">Tu asesora de moda</div>
+      </div>
+      <div class="preview-popup-body">
+        <div class="preview-bubble" id="prev-bubble" style="background:#1A1A2E;color:white;font-size:0.6rem;padding:0.5rem;border-radius:8px 8px 8px 2px;margin-bottom:0.4rem">
+          ¡Hola! Te ayudo a encontrar lo que más te favorece.
+        </div>
+        <button class="preview-popup-btn" id="prev-cta-btn" style="background:#C8956C;color:white;padding:0.4rem;border-radius:50px;font-size:0.6rem;font-weight:600;width:100%;border:none">
+          ¡Empezar! →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✅ Cambios guardados correctamente</div>
+
+<script>
+// ── NAVIGATION ──
+const sections = ['asesora','popup','estilo','quiz','productos','estado'];
+
+function showSection(name) {
+  sections.forEach(s => {
+    const el = document.getElementById('sec-' + s);
+    if (el) el.style.display = s === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.textContent.trim().toLowerCase().includes(name) || 
+      (name === 'asesora' && item.textContent.includes('Asesora')));
+  });
+}
+
+// ── PHOTO ──
+function triggerPhotoUpload() {
+  document.getElementById('photo-input').click();
+}
+
+function loadPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const src = e.target.result;
+    const preview = document.getElementById('advisor-photo-preview');
+    preview.src = src; preview.style.display = 'block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+    // update preview panel
+    const prevImg = document.getElementById('prev-avatar-img');
+    prevImg.src = src; prevImg.style.display = 'block';
+    document.getElementById('prev-avatar-emoji').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── VIDEO ──
+function loadVideo() {
+  let url = document.getElementById('video-url').value.trim();
+  const iframe = document.getElementById('video-iframe');
+  const placeholder = document.getElementById('video-placeholder');
+  if (!url) { iframe.style.display = 'none'; placeholder.style.display = 'flex'; return; }
+  if (url.includes('youtube.com/watch?v=')) url = url.replace('watch?v=', 'embed/');
+  else if (url.includes('youtu.be/')) url = 'https://www.youtube.com/embed/' + url.split('youtu.be/')[1];
+  iframe.src = url; iframe.style.display = 'block';
+  placeholder.style.display = 'none';
+}
+
+// ── TOGGLE ──
+function toggleSwitch(btn) { btn.classList.toggle('on'); }
+
+// ── COLOR SYNC ──
+function syncColor(type) {
+  const txt = document.getElementById('color-' + type + '-text').value;
+  const picker = document.getElementById('color-' + type);
+  if (/^#[0-9A-Fa-f]{6}$/.test(txt)) { picker.value = txt; updatePreview(); }
+}
+
+// ── PREVIEW ──
+function updatePreview() {
+  const name = document.getElementById('advisor-name')?.value || 'Valentina';
+  const role = document.getElementById('advisor-role')?.value || 'Tu asesora de moda';
+  const triggerTxt = document.getElementById('trigger-text')?.value || '✨ Encontrá tu look';
+  const ctaTxt = document.getElementById('cta-text')?.value || '¡Empezar!';
+  const msg = document.getElementById('welcome-msg')?.value || '';
+  const primary = document.getElementById('color-primary')?.value || '#1A1A2E';
+  const accent = document.getElementById('color-accent')?.value || '#C8956C';
+
+  document.getElementById('prev-name').textContent = name;
+  document.getElementById('prev-role').textContent = role;
+  document.getElementById('prev-trigger-text').textContent = triggerTxt;
+  document.getElementById('prev-cta-btn').textContent = ctaTxt;
+  document.getElementById('prev-bubble').textContent = msg.substring(0, 80) + (msg.length > 80 ? '...' : '');
+  document.getElementById('prev-popup-header').style.background = primary;
+  document.getElementById('prev-cta-btn').style.background = accent;
+  document.getElementById('prev-trigger-btn').style.background = primary;
+
+  // sync text field with picker
+  const colorPrimaryText = document.getElementById('color-primary-text');
+  const colorAccentText = document.getElementById('color-accent-text');
+  if (colorPrimaryText) colorPrimaryText.value = primary;
+  if (colorAccentText) colorAccentText.value = accent;
+}
+
+// ── SAVE ──
+const API_URL = window.location.origin.includes('localhost')
+  ? (localStorage.getItem('asesora_api') || 'https://asesora-moda-backend-production.up.railway.app')
+  : window.location.origin;
+
+function getStoreId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('store') || localStorage.getItem('asesora_store') || '';
+}
+
+function setToggle(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('on', Boolean(on));
+}
+
+function applyLoadedConfig(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+  if (cfg.advisor_name) document.getElementById('advisor-name').value = cfg.advisor_name;
+  if (cfg.advisor_role) document.getElementById('advisor-role').value = cfg.advisor_role;
+  if (cfg.video_url) { document.getElementById('video-url').value = cfg.video_url; loadVideo(); }
+  if (cfg.welcome_msg) document.getElementById('welcome-msg').value = cfg.welcome_msg;
+  if (cfg.welcome_msg2) document.getElementById('welcome-msg2').value = cfg.welcome_msg2;
+  if (cfg.cta_text) document.getElementById('cta-text').value = cfg.cta_text;
+  if (cfg.trigger_text) document.getElementById('trigger-text').value = cfg.trigger_text;
+  if (cfg.color_primary) document.getElementById('color-primary').value = cfg.color_primary;
+  if (cfg.color_accent) document.getElementById('color-accent').value = cfg.color_accent;
+  if (cfg.font) document.getElementById('font-select').value = cfg.font;
+  if (cfg.advisor_photo) {
+    const preview = document.getElementById('advisor-photo-preview');
+    preview.src = cfg.advisor_photo;
+    preview.style.display = 'block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+    const prevImg = document.getElementById('prev-avatar-img');
+    prevImg.src = cfg.advisor_photo;
+    prevImg.style.display = 'block';
+    document.getElementById('prev-avatar-emoji').style.display = 'none';
+  }
+  if (cfg.show_video !== undefined) setToggle('toggle-video', cfg.show_video);
+  if (cfg.show_popup !== undefined) setToggle('toggle-popup', cfg.show_popup);
+  if (cfg.show_price !== undefined) setToggle('toggle-price', cfg.show_price);
+  if (cfg.new_tab !== undefined) setToggle('toggle-newtab', cfg.new_tab);
+  if (cfg.show_fallback !== undefined) setToggle('toggle-fallback', cfg.show_fallback);
+  updatePreview();
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  const photoPreview = document.getElementById('advisor-photo-preview');
+  const advisorPhoto = photoPreview && photoPreview.src && photoPreview.src.startsWith('data:')
+    ? photoPreview.src
+    : undefined;
+
+  const config = {
+    advisor_name: document.getElementById('advisor-name')?.value,
+    advisor_role: document.getElementById('advisor-role')?.value,
+    advisor_photo: advisorPhoto,
+    video_url: document.getElementById('video-url')?.value,
+    welcome_msg: document.getElementById('welcome-msg')?.value,
+    welcome_msg2: document.getElementById('welcome-msg2')?.value,
+    cta_text: document.getElementById('cta-text')?.value,
+    trigger_text: document.getElementById('trigger-text')?.value,
+    color_primary: document.getElementById('color-primary')?.value,
+    color_accent: document.getElementById('color-accent')?.value,
+    font: document.getElementById('font-select')?.value,
+    show_video: document.getElementById('toggle-video')?.classList.contains('on'),
+    show_popup: document.getElementById('toggle-popup')?.classList.contains('on'),
+    show_price: document.getElementById('toggle-price')?.classList.contains('on'),
+    new_tab: document.getElementById('toggle-newtab')?.classList.contains('on'),
+    show_fallback: document.getElementById('toggle-fallback')?.classList.contains('on'),
+  };
+
+  const storeId = getStoreId();
+
+  try {
+    const res = await fetch(`${API_URL}/config/${storeId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (res.ok) {
+      showToast('✅ Cambios guardados correctamente');
+    } else {
+      showToast('⚠️ Guardado local (sin conexión al servidor)');
+      localStorage.setItem('asesora_config', JSON.stringify(config));
+    }
+  } catch(e) {
+    localStorage.setItem('asesora_config', JSON.stringify(config));
+    showToast('💾 Guardado localmente');
+  }
+
+  btn.disabled = false; btn.textContent = 'Guardar cambios';
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  setTimeout(() => toast.classList.remove('visible'), 3000);
+}
+
+// ── INIT ──
+window.addEventListener('load', async () => {
+  const storeId = getStoreId();
+  if (storeId) {
+    document.getElementById('store-id-display').textContent = storeId;
+    document.getElementById('store-name').textContent = 'Tienda #' + storeId;
+    // cargar config guardada
+    try {
+      const res = await fetch(`${API_URL}/config/${storeId}`);
+      if (res.ok) {
+        const cfg = await res.json();
+        applyLoadedConfig(cfg);
+      }
+    } catch(e) {
+      const saved = localStorage.getItem('asesora_config');
+      if (saved) applyLoadedConfig(JSON.parse(saved));
+    }
+  }
+  updatePreview();
+});
+</script>
+</body>
+</html>

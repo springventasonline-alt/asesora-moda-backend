@@ -1305,13 +1305,16 @@ function loadAdvisorPhoto(input) {
 }
 
 // Init on load
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   const apiInput = document.getElementById('cfg-api-url');
   const storeInput = document.getElementById('cfg-store-id');
   if (apiInput && !apiInput.value) apiInput.value = urlParams.get('api') || localStorage.getItem('asesora_api') || DEFAULT_API_URL;
   if (storeInput && !storeInput.value) {
     storeInput.value = urlParams.get('store') || localStorage.getItem('asesora_store') || readStoreIdFromLS();
   }
+
+  await loadRemoteConfig();
+
   if (IS_EMBED) {
     document.body.classList.add('embed-mode');
     setTimeout(initWelcome, 300);
@@ -1378,6 +1381,52 @@ function toggleStyle(val, el) {
 // ═══════════════════════════
 // CONFIG PANEL
 // ═══════════════════════════
+function applyRemoteConfig(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null && val !== '') el.value = val;
+  };
+
+  setVal('cfg-advisor-name', cfg.advisor_name);
+  setVal('cfg-advisor-role', cfg.advisor_role);
+  setVal('cfg-welcome-msg', cfg.welcome_msg);
+  setVal('cfg-welcome-msg2', cfg.welcome_msg2);
+  setVal('cfg-welcome-cta', cfg.cta_text);
+  setVal('cfg-btn-text', cfg.trigger_text);
+  setVal('cfg-primary', cfg.color_primary);
+  setVal('cfg-accent', cfg.color_accent);
+  setVal('cfg-font', cfg.font);
+  setVal('cfg-video', cfg.video_url);
+
+  if (cfg.advisor_photo) {
+    const img = document.getElementById('welcome-avatar-img');
+    const placeholder = document.getElementById('welcome-avatar-placeholder');
+    if (img) {
+      img.src = cfg.advisor_photo;
+      img.style.display = 'block';
+    }
+    if (placeholder) placeholder.style.display = 'none';
+  }
+
+  applyConfig();
+}
+
+async function loadRemoteConfig() {
+  const storeId = getStoreId();
+  const apiUrl = getApiUrl();
+  if (!storeId || !apiUrl) return;
+  try {
+    const res = await fetch(`${apiUrl}/config/${encodeURIComponent(storeId)}`, { credentials: 'omit' });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    applyRemoteConfig(cfg);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 function applyConfig() {
   const primary = document.getElementById('cfg-primary').value;
   const accent  = document.getElementById('cfg-accent').value;

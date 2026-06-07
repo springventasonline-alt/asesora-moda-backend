@@ -11,7 +11,10 @@ const CLIENT_SECRET = (process.env.TIENDANUBE_CLIENT_SECRET || '').trim();
 const APP_URL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 const USER_AGENT = process.env.TIENDANUBE_USER_AGENT || 'AsesoraModa/1.0 (soporte@asesoramoda.com)';
 const STORES_FILE = path.join(__dirname, 'data', 'stores.json');
+const CONFIGS_FILE = path.join(__dirname, 'data', 'configs.json');
+const ADMIN_PANEL_FILE = path.join(__dirname, 'public', 'admin', 'index.html');
 const TN_SCRIPT_ID = (process.env.TN_SCRIPT_ID || '7169').trim();
+const TN_SCRIPT_AUTO_INSTALL = process.env.TN_SCRIPT_AUTO_INSTALL !== 'false';
 const INSTALL_SECRET = (process.env.INSTALL_SECRET || '').trim();
 const SETUP_KEY = (process.env.SETUP_KEY || 'springdemo-7793118-setup').trim();
 const DEMO_STORE_ID = '7793118';
@@ -85,6 +88,13 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
+app.get('/admin', (req, res) => {
+  if (!fs.existsSync(ADMIN_PANEL_FILE)) {
+    return res.status(404).json({ error: 'Panel admin no encontrado' });
+  }
+  res.sendFile(ADMIN_PANEL_FILE);
+});
+
 app.get('/widget/install', (req, res) => {
   res.json({
     script_url: `${APP_URL}/widget/asesora.js`,
@@ -106,6 +116,8 @@ app.get('/', (req, res) => {
     install_spring: CLIENT_ID
       ? `${APP_URL}/auth/install?store=spring29.mitiendanube.com`
       : null,
+    admin_panel: `${APP_URL}/admin?store=6125057`,
+    config_api: `${APP_URL}/config/:store_id`,
   });
 });
 
@@ -316,24 +328,85 @@ app.get('/productos/:store_id', async (req, res) => {
 });
 
 app.post('/config/:store_id', (req, res) => {
-  const storeId = String(req.params.store_id);
-  if (!stores[storeId]) {
-    return res.status(404).json({ error: 'Tienda no conectada' });
+  const storeId = String(req.params.store_id).trim();
+  if (!storeId) {
+    return res.status(400).json({ error: 'store_id inválido' });
   }
 
-  stores[storeId].config = { ...stores[storeId].config, ...req.body };
-  saveStores(stores);
-  res.json({ ok: true, config: stores[storeId].config });
+  const merged = setConfigForStore(storeId, req.body || {});
+  res.json({ ok: true, store_id: storeId, config: merged });
 });
 
 app.get('/config/:store_id', (req, res) => {
-  const storeId = String(req.params.store_id);
-  if (!stores[storeId]) {
-    return res.status(404).json({ error: 'Tienda no conectada' });
+  const storeId = String(req.params.store_id).trim();
+  if (!storeId) {
+    return res.status(400).json({ error: 'store_id inválido' });
   }
 
-  res.json(stores[storeId].config || {});
+  res.set('Cache-Control', 'public, max-age=30');
+  res.json(getConfigForStore(storeId));
 });
+
+function loadConfigs() {
+  try {
+    if (fs.existsSync(CONFIGS_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIGS_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.warn('No se pudo leer configs.json:', err.message);
+  }
+  return {};
+}
+
+function saveConfigsFile(data) {
+  try {
+    fs.mkdirSync(path.dirname(CONFIGS_FILE), { recursive: true });
+    fs.writeFileSync(CONFIGS_FILE, JSON.stringify(data, null, 2));
+  } catch (err) {
+    console.warn('No se pudo persistir configs.json:', err.message);
+  }
+}
+
+function getDefaultConfig() {
+  return {
+    advisor_name: 'Valentina',
+    advisor_role: 'Tu asesora de moda',
+    trigger_text: '✨ Encontrá tu look',
+    welcome_msg: '¡Hola! 👋 Te ayudo a encontrar exactamente lo que más te favorece según tu cuerpo y estilo.',
+    welcome_msg2: 'Solo te hago unas preguntas rápidas y te armo una selección personalizada 🎯',
+    cta_text: '¡Empezar mi asesoramiento! →',
+    color_primary: '#1A1A2E',
+    color_accent: '#C8956C',
+    font: 'Cormorant Garamond',
+    show_video: true,
+    show_popup: true,
+    show_price: true,
+    new_tab: true,
+  };
+}
+
+function getConfigForStore(storeId) {
+  const configs = loadConfigs();
+  const fromFile = configs[storeId] || {};
+  const fromStore = stores[storeId]?.config || {};
+  return { ...getDefaultConfig(), ...fromStore, ...fromFile };
+}
+
+function setConfigForStore(storeId, patch) {
+  const configs = loadConfigs();
+  const current = getConfigForStore(storeId);
+  const merged = { ...current, ...patch, updated_at: new Date().toISOString() };
+
+  configs[storeId] = merged;
+  saveConfigsFile(configs);
+
+  if (stores[storeId]) {
+    stores[storeId].config = merged;
+    saveStores(stores);
+  }
+
+  return merged;
+}
 
 function loadStores() {
   try {
@@ -412,6 +485,16 @@ async function associateScriptWithStore(storeId, accessToken) {
     return { skipped: true, reason: 'TN_SCRIPT_ID no configurado' };
   }
 
+  if (TN_SCRIPT_AUTO_INSTALL) {
+    return {
+      ok: true,
+      action: 'auto_install',
+      script_id: TN_SCRIPT_ID,
+      message:
+        'Script con Auto instalado en Partner Portal: Tiendanube lo carga al instalar la app. No hace falta POST /scripts.',
+    };
+  }
+
   const listRes = await fetch(`https://api.tiendanube.com/v1/${storeId}/scripts`, {
     headers: {
       Authentication: `bearer ${accessToken}`,
@@ -440,7 +523,19 @@ async function associateScriptWithStore(storeId, accessToken) {
 
   const createData = await createRes.json().catch(() => ({}));
   if (!createRes.ok) {
-    throw new Error(`No se pudo asociar script ${TN_SCRIPT_ID}: ${JSON.stringify(createData)}`);
+    const detail = JSON.stringify(createData);
+    if (
+      createRes.status === 422
+      && /auto installed|auto.install/i.test(detail)
+    ) {
+      return {
+        ok: true,
+        action: 'auto_install',
+        script_id: TN_SCRIPT_ID,
+        message: 'Script auto-instalado: Tiendanube lo gestiona sin POST /scripts.',
+      };
+    }
+    throw new Error(`No se pudo asociar script ${TN_SCRIPT_ID}: ${detail}`);
   }
 
   return { ok: true, action: 'associated', script_id: TN_SCRIPT_ID, data: createData };
