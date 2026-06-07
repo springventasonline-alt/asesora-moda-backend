@@ -137,7 +137,7 @@
 
   function applyTriggerConfig(trigger, config) {
     if (!config || !trigger) return;
-    var label = config.trigger_text || '✨ Encontrá tu look';
+    var label = config.trigger_text || '👗 ¿Qué me queda bien?';
     trigger.innerHTML =
       '<span style="width:8px;height:8px;border-radius:50%;background:' +
       (config.color_accent || '#E8A87C') +

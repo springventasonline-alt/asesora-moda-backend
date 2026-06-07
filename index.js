@@ -485,7 +485,7 @@ function getDefaultConfig() {
   return {
     advisor_name: 'Valentina',
     advisor_role: 'Tu asesora de moda',
-    trigger_text: '✨ Encontrá tu look',
+    trigger_text: '👗 ¿Qué me queda bien?',
     welcome_msg: '¡Hola! 👋 Te ayudo a encontrar exactamente lo que más te favorece según tu cuerpo y estilo.',
     welcome_msg2: 'Solo te hago unas preguntas rápidas y te armo una selección personalizada 🎯',
     cta_text: '¡Empezar mi asesoramiento! →',

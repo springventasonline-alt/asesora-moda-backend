@@ -65,7 +65,7 @@ export function App(nube: NubeSDK) {
       variant="primary"
       onClick={() => openModal(nube, storeId)}
     >
-      ✨ Encontrá tu look
+      👗 ¿Qué me queda bien?
     </TriggerButton>,
   );
 }
