@@ -55,6 +55,54 @@ function isPublicAssetPath(pathname) {
   );
 }
 
+function isWebhookPath(pathname) {
+  return (
+    pathname === '/webhooks/redact-store' ||
+    pathname === '/webhooks/redact-customer' ||
+    pathname === '/webhooks/data-request'
+  );
+}
+
+function extractStoreIdFromWebhook(body) {
+  const raw = body?.store_id ?? body?.user_id;
+  if (raw == null || raw === '') return null;
+  return String(raw).trim();
+}
+
+function redactStoreData(storeId) {
+  const id = String(storeId || '').trim();
+  if (!id) return { removed: false, reason: 'missing_store_id' };
+
+  let removedStore = false;
+  if (stores[id]) {
+    delete stores[id];
+    saveStores(stores);
+    removedStore = true;
+  }
+
+  const configs = loadConfigs();
+  let removedConfig = false;
+  if (configs[id]) {
+    delete configs[id];
+    saveConfigsFile(configs);
+    removedConfig = true;
+  }
+
+  return { removed: removedStore || removedConfig, removedStore, removedConfig, store_id: id };
+}
+
+function handleLgpdWebhook(req, res, event) {
+  const storeId = extractStoreIdFromWebhook(req.body);
+  console.log(`[webhook:${event}]`, { store_id: storeId, body: req.body });
+
+  let redaction = null;
+  if (event === 'store/redact' && storeId) {
+    redaction = redactStoreData(storeId);
+  }
+
+  res.status(200).json({ ok: true, event, store_id: storeId, redaction });
+}
+
 // Archivos públicos ANTES de CORS — accesibles desde cualquier tienda Tiendanube
 app.use('/widget', express.static(WIDGET_DIR, { setHeaders: setPublicAssetHeaders }));
 app.use('/public', express.static(PUBLIC_DIR, { setHeaders: setPublicAssetHeaders }));
@@ -98,10 +146,22 @@ const apiCors = cors({
 });
 
 app.use((req, res, next) => {
-  if (isPublicAssetPath(req.path)) return next();
+  if (isPublicAssetPath(req.path) || isWebhookPath(req.path)) return next();
   return apiCors(req, res, next);
 });
 app.use(express.json());
+
+app.post('/webhooks/redact-store', (req, res) => {
+  handleLgpdWebhook(req, res, 'store/redact');
+});
+
+app.post('/webhooks/redact-customer', (req, res) => {
+  handleLgpdWebhook(req, res, 'customers/redact');
+});
+
+app.post('/webhooks/data-request', (req, res) => {
+  handleLgpdWebhook(req, res, 'customers/data_request');
+});
 
 app.get('/admin', (req, res) => {
   if (!fs.existsSync(ADMIN_PANEL_FILE)) {
@@ -133,6 +193,11 @@ app.get('/', (req, res) => {
       : null,
     admin_panel: `${APP_URL}/admin?store=6125057`,
     config_api: `${APP_URL}/config/:store_id`,
+    webhooks: {
+      redact_store: `${APP_URL}/webhooks/redact-store`,
+      redact_customer: `${APP_URL}/webhooks/redact-customer`,
+      data_request: `${APP_URL}/webhooks/data-request`,
+    },
   });
 });
 
