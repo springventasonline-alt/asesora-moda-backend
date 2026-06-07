@@ -1,14 +1,22 @@
 /**
- * Asesora de Moda — Script tag para Tiendanube
- * Partner Portal → Scripts → URL de producción:
- *   https://TU-APP.up.railway.app/widget/asesora.js
+ * Asesora de Moda — Script LEGACY (sin NubeSDK)
  *
- * También en el theme (manual):
- *   <script src="https://TU-APP.up.railway.app/widget/asesora.js" defer></script>
+ * Partner Portal con "Uses NubeSDK" DESACTIVADO:
+ *   https://asesora-moda-backend-production.up.railway.app/widget/asesora.js
+ *
+ * Partner Portal con "Uses NubeSDK" ACTIVADO → usar asesora-nube.min.js
  */
 (function () {
   'use strict';
 
+  if (typeof document === 'undefined') {
+    console.warn(
+      '[asesora-moda] Este script es legacy (DOM). Con NubeSDK activado usá /widget/asesora-nube.min.js',
+    );
+    return;
+  }
+
+  var DEFAULT_APP_BASE = 'https://asesora-moda-backend-production.up.railway.app';
   var ROOT_ID = 'asesora-moda-root';
   var TRIGGER_ID = 'asesora-moda-trigger';
   var IFRAME_ID = 'asesora-moda-iframe';
@@ -26,7 +34,7 @@
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
-      if (src.indexOf('/widget/asesora.js') !== -1) {
+      if (src.indexOf('/widget/asesora') !== -1) {
         try {
           return new URL(src).origin;
         } catch (e2) {
@@ -34,7 +42,13 @@
         }
       }
     }
-    return '';
+    return DEFAULT_APP_BASE;
+  }
+
+  function getStoreIdFromScriptSrc(src) {
+    if (!src) return null;
+    var match = src.match(/[?&]store=(\d+)/);
+    return match ? match[1] : null;
   }
 
   function getStoreId() {
@@ -45,8 +59,13 @@
     if (script) {
       var fromData = script.getAttribute('data-store-id');
       if (fromData) return String(fromData);
-      var match = (script.src || '').match(/[?&]store=(\d+)/);
-      if (match) return match[1];
+      var fromCurrent = getStoreIdFromScriptSrc(script.src || '');
+      if (fromCurrent) return fromCurrent;
+    }
+    var scripts = document.getElementsByTagName('script');
+    for (var i = 0; i < scripts.length; i++) {
+      var fromSrc = getStoreIdFromScriptSrc(scripts[i].src || '');
+      if (fromSrc) return fromSrc;
     }
     return null;
   }
@@ -117,7 +136,8 @@
     trigger.id = TRIGGER_ID;
     trigger.type = 'button';
     trigger.setAttribute('aria-label', 'Abrir asesora de moda');
-    trigger.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#E8A87C;display:inline-block"></span><span>✨ Encontrá tu look</span>';
+    trigger.innerHTML =
+      '<span style="width:8px;height:8px;border-radius:50%;background:#E8A87C;display:inline-block"></span><span>✨ Encontrá tu look</span>';
     trigger.addEventListener('click', function () {
       openPopup(appBase, storeId);
     });
@@ -143,17 +163,19 @@
       if (event.origin !== appBase) return;
       closePopup();
     });
+
+    console.info('[asesora-moda] Botón montado (legacy)', { storeId: storeId, appBase: appBase });
   }
 
   function init() {
     var appBase = getAppBase();
     var storeId = getStoreId();
     if (!appBase) {
-      console.warn('[asesora-moda] No se pudo detectar APP_BASE desde el script tag');
+      console.warn('[asesora-moda] No se pudo detectar APP_BASE');
       return;
     }
     if (!storeId) {
-      console.warn('[asesora-moda] No se detectó store_id (LS.store.id)');
+      console.warn('[asesora-moda] No se detectó store_id (LS.store.id ni ?store= en script)');
       return;
     }
     if (document.readyState === 'loading') {

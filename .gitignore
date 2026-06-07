@@ -1,4 +1,6 @@
 node_modules/
+nube-widget/node_modules/
+nube-widget/dist/
 .env
 .DS_Store
 data/
