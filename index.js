@@ -147,6 +147,44 @@ app.post('/auth/setup-scripts', async (req, res) => {
   res.json({ results });
 });
 
+app.get('/auth/store-scripts/:store_id', async (req, res) => {
+  const storeId = String(req.params.store_id || '').trim();
+  const store = stores[storeId];
+  if (!store?.access_token) {
+    return res.status(404).json({ error: 'Tienda no conectada', store_id: storeId });
+  }
+
+  try {
+    const scripts = await listStoreScriptsFromApi(storeId, store.access_token);
+    res.json({
+      store_id: storeId,
+      script_id: TN_SCRIPT_ID,
+      total: scripts.length,
+      scripts,
+      asesora_active: scripts.some(
+        (item) => String(item.id || item.script_id) === String(TN_SCRIPT_ID),
+      ),
+    });
+  } catch (err) {
+    res.status(502).json({ error: err.message, store_id: storeId });
+  }
+});
+
+app.post('/auth/associate-script/:store_id', async (req, res) => {
+  const storeId = String(req.params.store_id || '').trim();
+  const store = stores[storeId];
+  if (!store?.access_token) {
+    return res.status(404).json({ error: 'Tienda no conectada', store_id: storeId });
+  }
+
+  try {
+    const script = await associateScriptWithStore(storeId, store.access_token);
+    res.json({ ok: true, store_id: storeId, script });
+  } catch (err) {
+    res.status(502).json({ ok: false, store_id: storeId, error: err.message });
+  }
+});
+
 app.get('/auth/demo', (req, res) => {
   const installUrl = `${APP_URL}/auth/install?store=${DEMO_STORE_DOMAIN}`;
   const directAuthorizeUrl = `https://${DEMO_STORE_DOMAIN}/admin/apps/${CLIENT_ID}/authorize`;
@@ -480,46 +518,68 @@ async function exchangeOAuthCode(code) {
   return tokenData;
 }
 
+function tiendanubeApiHeaders(accessToken) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    'User-Agent': USER_AGENT,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function listStoreScriptsFromApi(storeId, accessToken) {
+  const listRes = await fetch(
+    `https://api.tiendanube.com/2025-03/${storeId}/scripts?per_page=100`,
+    { headers: tiendanubeApiHeaders(accessToken) },
+  );
+
+  if (!listRes.ok) {
+    const detail = await listRes.text();
+    throw new Error(`No se pudo listar scripts: ${detail}`);
+  }
+
+  const data = await listRes.json();
+  return Array.isArray(data) ? data : (data.result ?? []);
+}
+
 async function associateScriptWithStore(storeId, accessToken) {
   if (!TN_SCRIPT_ID) {
     return { skipped: true, reason: 'TN_SCRIPT_ID no configurado' };
   }
 
-  if (TN_SCRIPT_AUTO_INSTALL) {
+  const numericScriptId = Number(TN_SCRIPT_ID);
+  let existingScripts = [];
+
+  try {
+    existingScripts = await listStoreScriptsFromApi(storeId, accessToken);
+  } catch (err) {
+    console.warn(`No se pudo listar scripts en tienda ${storeId}:`, err.message);
+  }
+
+  const linked = existingScripts.find(
+    (item) => Number(item.id || item.script_id) === numericScriptId,
+  );
+
+  if (linked) {
     return {
       ok: true,
-      action: 'auto_install',
+      action: 'already_active',
       script_id: TN_SCRIPT_ID,
-      message:
-        'Script con Auto instalado en Partner Portal: Tiendanube lo carga al instalar la app. No hace falta POST /scripts.',
+      status: linked.status || null,
+      src: linked.current_version?.src || null,
     };
   }
 
-  const listRes = await fetch(`https://api.tiendanube.com/v1/${storeId}/scripts`, {
-    headers: {
-      Authentication: `bearer ${accessToken}`,
-      'User-Agent': USER_AGENT,
+  const createRes = await fetch(
+    `https://api.tiendanube.com/2025-03/${storeId}/scripts`,
+    {
+      method: 'POST',
+      headers: tiendanubeApiHeaders(accessToken),
+      body: JSON.stringify({
+        script_id: numericScriptId,
+        query_params: JSON.stringify({}),
+      }),
     },
-  });
-
-  if (listRes.ok) {
-    const existing = await listRes.json();
-    const alreadyLinked = Array.isArray(existing)
-      && existing.some((item) => String(item.script_id || item.id) === String(TN_SCRIPT_ID));
-    if (alreadyLinked) {
-      return { ok: true, action: 'already_associated', script_id: TN_SCRIPT_ID };
-    }
-  }
-
-  const createRes = await fetch(`https://api.tiendanube.com/v1/${storeId}/scripts`, {
-    method: 'POST',
-    headers: {
-      Authentication: `bearer ${accessToken}`,
-      'User-Agent': USER_AGENT,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ script_id: Number(TN_SCRIPT_ID) }),
-  });
+  );
 
   const createData = await createRes.json().catch(() => ({}));
   if (!createRes.ok) {
@@ -532,13 +592,30 @@ async function associateScriptWithStore(storeId, accessToken) {
         ok: true,
         action: 'auto_install',
         script_id: TN_SCRIPT_ID,
-        message: 'Script auto-instalado: Tiendanube lo gestiona sin POST /scripts.',
+        message: 'Script auto-instalado en Partner Portal (POST /scripts no aplica).',
+        scripts_in_store: existingScripts.map((item) => ({
+          id: item.id,
+          name: item.name,
+          status: item.status,
+        })),
       };
     }
     throw new Error(`No se pudo asociar script ${TN_SCRIPT_ID}: ${detail}`);
   }
 
-  return { ok: true, action: 'associated', script_id: TN_SCRIPT_ID, data: createData };
+  const refreshed = await listStoreScriptsFromApi(storeId, accessToken).catch(() => []);
+  const installed = refreshed.find(
+    (item) => Number(item.id || item.script_id) === numericScriptId,
+  );
+
+  return {
+    ok: true,
+    action: 'associated',
+    script_id: TN_SCRIPT_ID,
+    data: createData,
+    status: installed?.status || null,
+    src: installed?.current_version?.src || null,
+  };
 }
 
 async function connectStoreFromAccessToken(storeId, accessToken, source = 'manual') {
