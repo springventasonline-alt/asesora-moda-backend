@@ -265,6 +265,104 @@ app.post('/auth/associate-script/:store_id', async (req, res) => {
   }
 });
 
+function getPartnerAuthTokens() {
+  const tokens = [];
+  const partnerBearer = (process.env.PARTNER_BEARER_TOKEN || '').trim();
+  if (partnerBearer) tokens.push({ label: 'partner_bearer', value: partnerBearer });
+  if (CLIENT_SECRET) tokens.push({ label: 'client_secret', value: CLIENT_SECRET });
+  return tokens;
+}
+
+async function publishNubeWidgetToPartnerPortal() {
+  const widgetPath = path.join(WIDGET_DIR, 'asesora-nube.min.js');
+  const ecosystemBase = `https://services-ecosystem.ms.tiendanube.com/apps/${CLIENT_ID}/scripts/${TN_SCRIPT_ID}`;
+  const tokens = getPartnerAuthTokens();
+
+  if (!tokens.length) {
+    return { ok: false, error: 'Faltan PARTNER_BEARER_TOKEN o TIENDANUBE_CLIENT_SECRET' };
+  }
+  if (!fs.existsSync(widgetPath)) {
+    return { ok: false, error: `No existe ${widgetPath}` };
+  }
+
+  const attempts = [];
+  for (const token of tokens) {
+    const attempt = { auth: token.label, upload: null, activate: null };
+    const body = new FormData();
+    const blob = new Blob([fs.readFileSync(widgetPath)], { type: 'application/javascript' });
+    body.append('file', blob, 'asesora-nube.min.js');
+
+    const uploadRes = await fetch(`${ecosystemBase}/versions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}`, 'User-Agent': USER_AGENT },
+      body,
+    });
+    const uploadText = await uploadRes.text();
+    let uploadBody = null;
+    try { uploadBody = JSON.parse(uploadText); } catch { uploadBody = { raw: uploadText }; }
+    attempt.upload = { status: uploadRes.status, ok: uploadRes.ok, body: uploadBody };
+
+    if (!uploadRes.ok) {
+      attempts.push(attempt);
+      continue;
+    }
+
+    const versionId = uploadBody?.id ?? uploadBody?.data?.id ?? null;
+    const patchRes = await fetch(ecosystemBase, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        'User-Agent': USER_AGENT,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(versionId ? { activeVersionId: versionId } : { installLatest: true }),
+    });
+    const patchText = await patchRes.text();
+    let patchBody = null;
+    try { patchBody = JSON.parse(patchText); } catch { patchBody = { raw: patchText }; }
+    attempt.activate = { status: patchRes.status, ok: patchRes.ok, body: patchBody };
+    attempts.push(attempt);
+
+    if (uploadRes.ok && patchRes.ok) {
+      return {
+        ok: true,
+        auth: token.label,
+        version_id: versionId,
+        widget_url: `${APP_URL}/widget/asesora-nube.min.js`,
+        attempts,
+      };
+    }
+  }
+
+  return { ok: false, error: 'No se pudo publicar asesora-nube.min.js', attempts };
+}
+
+app.get('/auth/publish-nube-widget/capabilities', (req, res) => {
+  const widgetPath = path.join(WIDGET_DIR, 'asesora-nube.min.js');
+  res.json({
+    app_id: CLIENT_ID,
+    script_id: TN_SCRIPT_ID,
+    widget_path: widgetPath,
+    widget_exists: fs.existsSync(widgetPath),
+    widget_bytes: fs.existsSync(widgetPath) ? fs.statSync(widgetPath).size : 0,
+    auth_methods: getPartnerAuthTokens().map((t) => t.label),
+  });
+});
+
+app.post('/auth/publish-nube-widget', async (req, res) => {
+  const setupKey = String(req.body?.key || req.headers['x-setup-key'] || req.query?.key || '').trim();
+  if (setupKey !== SETUP_KEY) {
+    return res.status(403).json({ error: 'Setup key inválida' });
+  }
+
+  try {
+    const result = await publishNubeWidgetToPartnerPortal();
+    res.status(result.ok ? 200 : 502).json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.get('/auth/demo', (req, res) => {
   const installUrl = `${APP_URL}/auth/install?store=${DEMO_STORE_DOMAIN}`;
   const directAuthorizeUrl = `https://${DEMO_STORE_DOMAIN}/admin/apps/${CLIENT_ID}/authorize`;

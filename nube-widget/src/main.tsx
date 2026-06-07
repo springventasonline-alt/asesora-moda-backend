@@ -51,21 +51,21 @@ function openModal(nube: NubeSDK, storeId: number) {
   );
 }
 
-export function App(nube: NubeSDK) {
-  const storeId = nube.getState().store?.id;
-
-  if (!storeId) {
-    console.warn("[asesora-moda] NubeSDK: store.id no disponible en el state");
-    return;
-  }
-
-  nube.render(
-    "corner_bottom_right",
+function renderTrigger(nube: NubeSDK, storeId: number) {
+  return (
     <TriggerButton
       variant="primary"
       onClick={() => openModal(nube, storeId)}
     >
       👗 ¿Qué me queda bien?
-    </TriggerButton>,
+    </TriggerButton>
   );
+}
+
+export function App(nube: NubeSDK) {
+  nube.render("corner_bottom_right", (state) => {
+    const storeId = state.store?.id;
+    if (!storeId) return null;
+    return renderTrigger(nube, storeId);
+  });
 }
