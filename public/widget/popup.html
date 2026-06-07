@@ -623,6 +623,19 @@ body.embed-mode #welcome-overlay { display: flex !important; }
 .product-name { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.2rem; line-height: 1.3; }
 .product-why { font-size: 0.65rem; color: var(--muted); line-height: 1.35; margin-bottom: 0.5rem; }
 .product-price { font-size: 0.85rem; font-weight: 600; color: var(--accent2); }
+.product-ver-btn {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--soft);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.product-ver-btn:hover { background: var(--accent); color: #fff; }
 
 /* tips strip */
 .tips-strip {
@@ -1192,6 +1205,43 @@ body.embed-mode #welcome-overlay { display: flex !important; }
 // ═══════════════════════════
 const urlParams = new URLSearchParams(window.location.search);
 const IS_EMBED = urlParams.get('embed') === '1';
+const DEFAULT_API_URL = 'https://asesora-moda-backend-production.up.railway.app';
+
+function readStoreIdFromLS() {
+  if (window.LS && window.LS.store && window.LS.store.id) {
+    return String(window.LS.store.id);
+  }
+  try {
+    if (window.parent && window.parent !== window && window.parent.LS && window.parent.LS.store && window.parent.LS.store.id) {
+      return String(window.parent.LS.store.id);
+    }
+  } catch (e) {
+    /* cross-origin iframe */
+  }
+  return '';
+}
+
+function getApiUrl() {
+  return (
+    document.getElementById('cfg-api-url')?.value ||
+    urlParams.get('api') ||
+    localStorage.getItem('asesora_api') ||
+    DEFAULT_API_URL
+  )
+    .trim()
+    .replace(/\/$/, '');
+}
+
+function getStoreId() {
+  return (
+    document.getElementById('cfg-store-id')?.value ||
+    urlParams.get('store') ||
+    localStorage.getItem('asesora_store') ||
+    readStoreIdFromLS() ||
+    ''
+  )
+    .trim();
+}
 
 function notifyParentClose() {
   if (!IS_EMBED || !window.parent || window.parent === window) return;
@@ -1209,16 +1259,6 @@ const ESTILO_API_MAP = {
   trendy: 'trendy',
   romantica: 'romantica',
 };
-
-function getApiUrl() {
-  return (document.getElementById('cfg-api-url')?.value || urlParams.get('api') || localStorage.getItem('asesora_api') || '')
-    .trim()
-    .replace(/\/$/, '');
-}
-
-function getStoreId() {
-  return (document.getElementById('cfg-store-id')?.value || urlParams.get('store') || localStorage.getItem('asesora_store') || '').trim();
-}
 
 // ═══════════════════════════
 // WELCOME POPUP
@@ -1268,8 +1308,10 @@ function loadAdvisorPhoto(input) {
 window.addEventListener('load', () => {
   const apiInput = document.getElementById('cfg-api-url');
   const storeInput = document.getElementById('cfg-store-id');
-  if (apiInput && !apiInput.value) apiInput.value = urlParams.get('api') || localStorage.getItem('asesora_api') || '';
-  if (storeInput && !storeInput.value) storeInput.value = urlParams.get('store') || localStorage.getItem('asesora_store') || '';
+  if (apiInput && !apiInput.value) apiInput.value = urlParams.get('api') || localStorage.getItem('asesora_api') || DEFAULT_API_URL;
+  if (storeInput && !storeInput.value) {
+    storeInput.value = urlParams.get('store') || localStorage.getItem('asesora_store') || readStoreIdFromLS();
+  }
   if (IS_EMBED) {
     document.body.classList.add('embed-mode');
     setTimeout(initWelcome, 300);
@@ -1530,16 +1572,25 @@ async function buildResults() {
       if (res.ok) {
         const data = await res.json();
         const grouped = groupApiProducts(data.productos || []);
-        renderProducts('prod-pantalones', grouped.pantalones.slice(0, 6));
-        renderProducts('prod-tops', grouped.tops.slice(0, 6));
-        renderProducts('prod-vestidos', grouped.vestidos.slice(0, 6));
-        renderTips();
-        return;
+        const totalApi =
+          grouped.pantalones.length + grouped.tops.length + grouped.vestidos.length;
+
+        if (totalApi > 0) {
+          renderProducts('prod-pantalones', grouped.pantalones.slice(0, 6));
+          renderProducts('prod-tops', grouped.tops.slice(0, 6));
+          renderProducts('prod-vestidos', grouped.vestidos.slice(0, 6));
+          renderTips();
+          return;
+        }
+        console.warn('[asesora] API sin productos para este perfil, usando demo');
+      } else {
+        console.warn('[asesora] API respondió', res.status, await res.text());
       }
-      console.warn('API respondió', res.status, await res.text());
     } catch (err) {
-      console.warn('Fallback a demo:', err);
+      console.warn('[asesora] Fallback a demo:', err);
     }
+  } else {
+    console.warn('[asesora] Falta apiUrl o storeId', { apiUrl, storeId });
   }
 
   renderDemoProducts();
@@ -1589,22 +1640,23 @@ function renderProducts(containerId, list) {
   }
   el.innerHTML = list.map(p => {
     const imgContent = p.image
-      ? `<img src="${escHtml(p.image)}" alt="" style="width:100%;height:100%;object-fit:cover">`
+      ? `<img src="${escHtml(p.image)}" alt="${escHtml(p.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
       : `<span style="font-size:2.5rem">${p.emoji || '👗'}</span>`;
-    const cardInner = `
+    const verBtn = p.url
+      ? `<a class="product-ver-btn" href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer">Ver →</a>`
+      : '';
+    return `<div class="product-card">
       <div class="product-img" style="background:var(--soft)">
         ${imgContent}
-        ${p.badge ? `<div class="product-badge">${p.badge}</div>` : ''}
+        ${p.badge ? `<div class="product-badge">${escHtml(p.badge)}</div>` : ''}
       </div>
       <div class="product-info">
         <div class="product-name">${escHtml(p.name)}</div>
         <div class="product-why">${escHtml(p.why)}</div>
         <div class="product-price">${escHtml(p.price)}</div>
-      </div>`;
-    if (p.url) {
-      return `<a class="product-card" href="${escHtml(p.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">${cardInner}</a>`;
-    }
-    return `<div class="product-card">${cardInner}</div>`;
+        ${verBtn}
+      </div>
+    </div>`;
   }).join('');
 }
 
