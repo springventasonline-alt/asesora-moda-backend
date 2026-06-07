@@ -290,6 +290,33 @@ app.post('/auth/register-token', async (req, res) => {
   }
 });
 
+app.get('/auth/setup/token/:store_id', (req, res) => {
+  const setupKey = String(req.query.key || req.headers['x-setup-key'] || '').trim();
+  if (!SETUP_KEY || setupKey !== SETUP_KEY) {
+    return res.status(403).json({ error: 'Setup key inválida' });
+  }
+
+  const storeId = String(req.params.store_id || '').trim();
+  const store = stores[storeId];
+  if (!store?.access_token) {
+    return res.status(404).json({ error: 'Tienda no conectada o sin token', store_id: storeId });
+  }
+
+  const storesJson = {};
+  Object.entries(stores).forEach(([id, entry]) => {
+    if (entry?.access_token) storesJson[id] = entry.access_token;
+  });
+
+  res.json({
+    store_id: storeId,
+    access_token: store.access_token,
+    scope: store.scope || null,
+    source: store.source || null,
+    connected_at: store.connected_at || null,
+    tn_stores_json: JSON.stringify(storesJson),
+  });
+});
+
 app.get('/auth/callback', async (req, res) => {
   const code = req.query.code ? String(req.query.code) : '';
 
