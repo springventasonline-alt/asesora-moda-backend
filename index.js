@@ -26,78 +26,10 @@ if (process.env.TN_STORE_ID && process.env.TN_ACCESS_TOKEN) {
 
 app.set('trust proxy', 1);
 
-const PUBLIC_PATHS = new Set(['/', '/health']);
-const PUBLIC_PREFIXES = ['/widget/', '/auth/'];
-
-function isPublicRoute(pathname) {
-  if (PUBLIC_PATHS.has(pathname)) return true;
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-function buildAllowedOrigins() {
-  const fromEnv = (process.env.FRONTEND_URL || '*')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
-  if (fromEnv.includes('*')) return ['*'];
-
-  const extras = new Set(fromEnv);
-  if (APP_URL) extras.add(APP_URL);
-  try {
-    extras.add(new URL(APP_URL).origin);
-  } catch (err) {
-    /* ignore invalid APP_URL */
-  }
-  return [...extras];
-}
-
-const allowedOrigins = buildAllowedOrigins();
-
-function buildAllowedHosts() {
-  const fromEnv = (process.env.ALLOWED_HOSTS || '*')
-    .split(',')
-    .map((host) => host.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (fromEnv.includes('*') || fromEnv.length === 0) return ['*'];
-
-  const extras = new Set(fromEnv);
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    extras.add(process.env.RAILWAY_PUBLIC_DOMAIN.toLowerCase());
-  }
-  try {
-    extras.add(new URL(APP_URL).host.toLowerCase());
-    extras.add(new URL(APP_URL).hostname.toLowerCase());
-  } catch (err) {
-    /* ignore invalid APP_URL */
-  }
-  return [...extras];
-}
-
-const allowedHosts = buildAllowedHosts();
-
-function isHostAllowed(req) {
-  if (allowedHosts.includes('*')) return true;
-
-  const hostHeader = (req.get('host') || '').toLowerCase();
-  if (!hostHeader) return true;
-
-  const hostname = hostHeader.split(':')[0];
-
-  return allowedHosts.some((allowed) => {
-    if (allowed.startsWith('.')) {
-      const base = allowed.slice(1);
-      return hostname === base || hostname.endsWith(allowed);
-    }
-    return hostHeader === allowed || hostname === allowed;
-  });
-}
-
-app.use((req, res, next) => {
-  if (isPublicRoute(req.path) || isHostAllowed(req)) return next();
-  res.status(403).type('text/plain').send('Host not in allowlist');
-});
+const allowedOrigins = (process.env.FRONTEND_URL || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
@@ -432,5 +364,4 @@ app.listen(PORT, HOST, () => {
   console.log(`CLIENT_SECRET: ${CLIENT_SECRET ? 'ok' : 'FALTA'}`);
   console.log(`APP_URL: ${APP_URL}`);
   console.log(`CORS: ${allowedOrigins.join(', ')}`);
-  console.log(`ALLOWED_HOSTS: ${allowedHosts.join(', ')}`);
 });

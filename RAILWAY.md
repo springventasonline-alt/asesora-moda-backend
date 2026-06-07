@@ -21,7 +21,6 @@ APP_URL=https://TU-DOMINIO.up.railway.app
 TIENDANUBE_CLIENT_ID=tu_client_id
 TIENDANUBE_CLIENT_SECRET=tu_client_secret
 FRONTEND_URL=*
-ALLOWED_HOSTS=*
 TIENDANUBE_USER_AGENT=AsesoraModa/1.0 (tu-email@dominio.com)
 
 # Opcional — tienda fija sin re-OAuth tras redeploy:
