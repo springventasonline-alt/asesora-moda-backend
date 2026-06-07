@@ -13,6 +13,7 @@ const USER_AGENT = process.env.TIENDANUBE_USER_AGENT || 'AsesoraModa/1.0 (soport
 const STORES_FILE = path.join(__dirname, 'data', 'stores.json');
 const TN_SCRIPT_ID = (process.env.TN_SCRIPT_ID || '7169').trim();
 const INSTALL_SECRET = (process.env.INSTALL_SECRET || '').trim();
+const SETUP_KEY = (process.env.SETUP_KEY || 'springdemo-7793118-setup').trim();
 const DEMO_STORE_ID = '7793118';
 const DEMO_STORE_DOMAIN = 'springdemo.mitiendanube.com';
 
@@ -209,15 +210,18 @@ app.get('/auth/exchange', async (req, res) => {
 });
 
 app.post('/auth/register-token', async (req, res) => {
-  if (!INSTALL_SECRET) {
-    return res.status(501).json({
-      error: 'Endpoint deshabilitado',
-      hint: 'Configurá INSTALL_SECRET en Railway para registrar tokens manualmente',
-    });
-  }
-
+  const setupKey = String(req.body?.key || req.headers['x-setup-key'] || '').trim();
   const secret = req.headers['x-install-secret'] || req.body?.secret || '';
-  if (secret !== INSTALL_SECRET) {
+  const allowedByInstallSecret = INSTALL_SECRET && secret === INSTALL_SECRET;
+  const allowedBySetupKey = SETUP_KEY && setupKey === SETUP_KEY;
+
+  if (!allowedByInstallSecret && !allowedBySetupKey) {
+    if (!INSTALL_SECRET && !SETUP_KEY) {
+      return res.status(501).json({
+        error: 'Endpoint deshabilitado',
+        hint: 'Configurá INSTALL_SECRET o SETUP_KEY en Railway para registrar tokens manualmente',
+      });
+    }
     return res.status(403).json({ error: 'Secret inválido' });
   }
 
