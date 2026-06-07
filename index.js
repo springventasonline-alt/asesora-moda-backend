@@ -11,18 +11,13 @@ const CLIENT_SECRET = (process.env.TIENDANUBE_CLIENT_SECRET || '').trim();
 const APP_URL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 const USER_AGENT = process.env.TIENDANUBE_USER_AGENT || 'AsesoraModa/1.0 (soporte@asesoramoda.com)';
 const STORES_FILE = path.join(__dirname, 'data', 'stores.json');
+const TN_SCRIPT_ID = (process.env.TN_SCRIPT_ID || '7169').trim();
+const INSTALL_SECRET = (process.env.INSTALL_SECRET || '').trim();
+const DEMO_STORE_ID = '7793118';
+const DEMO_STORE_DOMAIN = 'springdemo.mitiendanube.com';
 
 const stores = loadStores();
-
-if (process.env.TN_STORE_ID && process.env.TN_ACCESS_TOKEN) {
-  stores[String(process.env.TN_STORE_ID)] = {
-    access_token: process.env.TN_ACCESS_TOKEN,
-    store_id: String(process.env.TN_STORE_ID),
-    connected_at: new Date().toISOString(),
-    config: {},
-    source: 'env',
-  };
-}
+hydrateStoresFromEnv(stores);
 
 app.set('trust proxy', 1);
 
@@ -106,10 +101,43 @@ app.get('/', (req, res) => {
     install_demo: CLIENT_ID
       ? `${APP_URL}/auth/install?store=springdemo.mitiendanube.com`
       : null,
+    install_demo_guide: `${APP_URL}/auth/demo`,
     install_spring: CLIENT_ID
       ? `${APP_URL}/auth/install?store=spring29.mitiendanube.com`
       : null,
   });
+});
+
+app.get('/auth/status', (req, res) => {
+  res.json({
+    connected_stores: Object.keys(stores).map((id) => ({
+      store_id: id,
+      source: stores[id].source || null,
+      connected_at: stores[id].connected_at || null,
+      scope: stores[id].scope || null,
+    })),
+    script_id: TN_SCRIPT_ID,
+  });
+});
+
+app.post('/auth/setup-scripts', async (req, res) => {
+  const results = [];
+  for (const [storeId, store] of Object.entries(stores)) {
+    if (!store.access_token) continue;
+    try {
+      const script = await associateScriptWithStore(storeId, store.access_token);
+      results.push({ store_id: storeId, ok: true, script });
+    } catch (err) {
+      results.push({ store_id: storeId, ok: false, error: err.message });
+    }
+  }
+  res.json({ results });
+});
+
+app.get('/auth/demo', (req, res) => {
+  const installUrl = `${APP_URL}/auth/install?store=${DEMO_STORE_DOMAIN}`;
+  const directAuthorizeUrl = `https://${DEMO_STORE_DOMAIN}/admin/apps/${CLIENT_ID}/authorize`;
+  res.type('html').send(renderInstallGuideHtml({ installUrl, directAuthorizeUrl }));
 });
 
 app.get('/auth/install', (req, res) => {
@@ -125,16 +153,20 @@ app.get('/auth/install', (req, res) => {
     });
   }
 
+  if (req.query.help === '1' || req.query.guide === '1') {
+    const storeDomain = normalizeStoreDomain(req.query.store || DEMO_STORE_DOMAIN);
+    const installUrl = `${APP_URL}/auth/install?store=${storeDomain}`;
+    const directAuthorizeUrl = `https://${storeDomain}/admin/apps/${CLIENT_ID}/authorize`;
+    return res.type('html').send(renderInstallGuideHtml({ installUrl, directAuthorizeUrl, storeDomain }));
+  }
+
   const params = new URLSearchParams();
   if (req.query.state) {
     params.set('state', String(req.query.state));
   }
 
   const query = params.toString();
-  const storeDomain = (req.query.store || req.query.domain || '')
-    .trim()
-    .replace(/^https?:\/\//, '')
-    .replace(/\/.*$/, '');
+  const storeDomain = normalizeStoreDomain(req.query.store || req.query.domain || '');
 
   // Instalar en una tienda específica (recomendado para tienda demo del Partner Portal)
   if (storeDomain) {
@@ -142,6 +174,7 @@ app.get('/auth/install', (req, res) => {
       return res.status(400).json({
         error: 'Dominio de tienda inválido',
         example: `${APP_URL}/auth/install?store=springdemo.mitiendanube.com`,
+        guide: `${APP_URL}/auth/demo`,
       });
     }
 
@@ -156,81 +189,63 @@ app.get('/auth/install', (req, res) => {
   res.redirect(302, authorizeUrl);
 });
 
+app.get('/auth/exchange', async (req, res) => {
+  const code = req.query.code ? String(req.query.code) : '';
+  if (!code) {
+    return res.status(400).json({
+      error: 'Falta ?code= del callback OAuth',
+      hint: 'Copiá el code de la URL después de autorizar la app (vence en 5 minutos)',
+      demo_guide: `${APP_URL}/auth/demo`,
+    });
+  }
+
+  try {
+    const result = await connectStoreFromOAuthCode(code);
+    res.json(result);
+  } catch (err) {
+    console.error('Error en /auth/exchange:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/auth/register-token', async (req, res) => {
+  if (!INSTALL_SECRET) {
+    return res.status(501).json({
+      error: 'Endpoint deshabilitado',
+      hint: 'Configurá INSTALL_SECRET en Railway para registrar tokens manualmente',
+    });
+  }
+
+  const secret = req.headers['x-install-secret'] || req.body?.secret || '';
+  if (secret !== INSTALL_SECRET) {
+    return res.status(403).json({ error: 'Secret inválido' });
+  }
+
+  const storeId = String(req.body?.store_id || '').trim();
+  const accessToken = String(req.body?.access_token || '').trim();
+  if (!storeId || !accessToken) {
+    return res.status(400).json({ error: 'Faltan store_id y access_token' });
+  }
+
+  try {
+    const result = await connectStoreFromAccessToken(storeId, accessToken, 'manual');
+    res.json(result);
+  } catch (err) {
+    console.error('Error en /auth/register-token:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/auth/callback', async (req, res) => {
-  const { code } = req.query;
-  const storeIdFromQuery = req.query.store_id ? String(req.query.store_id) : null;
+  const code = req.query.code ? String(req.query.code) : '';
 
   if (!code) {
     return res.status(400).send('Falta el parámetro code');
   }
 
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    return res.status(500).send('OAuth no configurado: faltan CLIENT_ID o CLIENT_SECRET');
-  }
-
   try {
-    const tokenRes = await fetch('https://www.tiendanube.com/apps/authorize/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-      }),
-    });
-
-    const tokenData = await tokenRes.json();
-
-    if (!tokenRes.ok || !tokenData.access_token) {
-      console.error('Error obteniendo token:', tokenData);
-      return res.status(500).send('Error al obtener el token de Tiendanube');
-    }
-
-    const storeId = String(tokenData.user_id || storeIdFromQuery);
-    if (!storeId) {
-      return res.status(500).send('No se pudo determinar el store_id');
-    }
-
-    stores[storeId] = {
-      access_token: tokenData.access_token,
-      store_id: storeId,
-      scope: tokenData.scope || null,
-      connected_at: new Date().toISOString(),
-      config: stores[storeId]?.config || {},
-      source: 'oauth',
-    };
-    saveStores(stores);
-
-    console.log(`Tienda ${storeId} conectada correctamente`);
-
-    res.send(`
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Conectado</title>
-        <style>
-          body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #FAF9F6; }
-          .card { background: white; border-radius: 20px; padding: 2.5rem; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 380px; }
-          .icon { font-size: 3rem; margin-bottom: 1rem; }
-          h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #1A1A2E; }
-          p { color: #888; font-size: 0.9rem; line-height: 1.5; }
-          .store-id { background: #F0EDE8; border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-family: monospace; margin-top: 1rem; display: inline-block; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="icon">🎉</div>
-          <h1>Tu tienda está conectada</h1>
-          <p>La Asesora de Moda ya puede leer tus productos y dar recomendaciones personalizadas.</p>
-          <div class="store-id">Store ID: ${storeId}</div>
-          <p style="margin-top:1rem; font-size:0.78rem; color:#aaa;">Podés cerrar esta ventana y volver a tu tienda.</p>
-        </div>
-      </body>
-      </html>
-    `);
+    const result = await connectStoreFromOAuthCode(code);
+    res.send(renderConnectedHtml(result.store_id, result.script));
   } catch (err) {
     console.error('Error en /auth/callback:', err);
     res.status(500).send(`Error interno: ${err.message}`);
@@ -325,6 +340,238 @@ function loadStores() {
     console.warn('No se pudo leer stores.json:', err.message);
   }
   return {};
+}
+
+function hydrateStoresFromEnv(target) {
+  if (process.env.TN_STORE_ID && process.env.TN_ACCESS_TOKEN) {
+    target[String(process.env.TN_STORE_ID)] = {
+      access_token: process.env.TN_ACCESS_TOKEN,
+      store_id: String(process.env.TN_STORE_ID),
+      connected_at: new Date().toISOString(),
+      config: {},
+      source: 'env',
+    };
+  }
+
+  if (process.env.TN_STORES_JSON) {
+    try {
+      const parsed = JSON.parse(process.env.TN_STORES_JSON);
+      Object.entries(parsed).forEach(([storeId, accessToken]) => {
+        if (!storeId || !accessToken) return;
+        target[String(storeId)] = {
+          access_token: String(accessToken),
+          store_id: String(storeId),
+          connected_at: new Date().toISOString(),
+          config: target[String(storeId)]?.config || {},
+          source: 'env_json',
+        };
+      });
+    } catch (err) {
+      console.warn('TN_STORES_JSON inválido:', err.message);
+    }
+  }
+}
+
+function normalizeStoreDomain(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+}
+
+async function exchangeOAuthCode(code) {
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    throw new Error('OAuth no configurado: faltan CLIENT_ID o CLIENT_SECRET');
+  }
+
+  const tokenRes = await fetch('https://www.tiendanube.com/apps/authorize/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      grant_type: 'authorization_code',
+      code,
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok || !tokenData.access_token) {
+    throw new Error(`Error al obtener token: ${JSON.stringify(tokenData)}`);
+  }
+
+  return tokenData;
+}
+
+async function associateScriptWithStore(storeId, accessToken) {
+  if (!TN_SCRIPT_ID) {
+    return { skipped: true, reason: 'TN_SCRIPT_ID no configurado' };
+  }
+
+  const listRes = await fetch(`https://api.tiendanube.com/v1/${storeId}/scripts`, {
+    headers: {
+      Authentication: `bearer ${accessToken}`,
+      'User-Agent': USER_AGENT,
+    },
+  });
+
+  if (listRes.ok) {
+    const existing = await listRes.json();
+    const alreadyLinked = Array.isArray(existing)
+      && existing.some((item) => String(item.script_id || item.id) === String(TN_SCRIPT_ID));
+    if (alreadyLinked) {
+      return { ok: true, action: 'already_associated', script_id: TN_SCRIPT_ID };
+    }
+  }
+
+  const createRes = await fetch(`https://api.tiendanube.com/v1/${storeId}/scripts`, {
+    method: 'POST',
+    headers: {
+      Authentication: `bearer ${accessToken}`,
+      'User-Agent': USER_AGENT,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ script_id: Number(TN_SCRIPT_ID) }),
+  });
+
+  const createData = await createRes.json().catch(() => ({}));
+  if (!createRes.ok) {
+    throw new Error(`No se pudo asociar script ${TN_SCRIPT_ID}: ${JSON.stringify(createData)}`);
+  }
+
+  return { ok: true, action: 'associated', script_id: TN_SCRIPT_ID, data: createData };
+}
+
+async function connectStoreFromAccessToken(storeId, accessToken, source = 'manual') {
+  stores[String(storeId)] = {
+    access_token: accessToken,
+    store_id: String(storeId),
+    connected_at: new Date().toISOString(),
+    config: stores[String(storeId)]?.config || {},
+    source,
+  };
+  saveStores(stores);
+
+  let script = { skipped: true, reason: 'sin scope write_scripts o app no instalada' };
+  try {
+    script = await associateScriptWithStore(storeId, accessToken);
+  } catch (err) {
+    console.warn(`Script ${TN_SCRIPT_ID} no asociado en tienda ${storeId}:`, err.message);
+    script = { ok: false, error: err.message };
+  }
+
+  console.log(`Tienda ${storeId} conectada (${source})`);
+  return { ok: true, store_id: String(storeId), script, source };
+}
+
+async function connectStoreFromOAuthCode(code) {
+  const tokenData = await exchangeOAuthCode(code);
+  const storeId = String(tokenData.user_id || '');
+  if (!storeId) {
+    throw new Error('No se pudo determinar el store_id desde OAuth');
+  }
+
+  stores[storeId] = {
+    access_token: tokenData.access_token,
+    store_id: storeId,
+    scope: tokenData.scope || null,
+    connected_at: new Date().toISOString(),
+    config: stores[storeId]?.config || {},
+    source: 'oauth',
+  };
+  saveStores(stores);
+
+  let script = { skipped: true };
+  try {
+    script = await associateScriptWithStore(storeId, tokenData.access_token);
+  } catch (err) {
+    console.warn(`Script ${TN_SCRIPT_ID} no asociado en tienda ${storeId}:`, err.message);
+    script = { ok: false, error: err.message };
+  }
+
+  console.log(`Tienda ${storeId} conectada correctamente`);
+  return { ok: true, store_id: storeId, script, scope: tokenData.scope || null };
+}
+
+function renderConnectedHtml(storeId, scriptInfo) {
+  const scriptText = scriptInfo?.ok
+    ? `Script #${TN_SCRIPT_ID}: ${scriptInfo.action || 'asociado'}`
+    : scriptInfo?.error
+      ? `Script #${TN_SCRIPT_ID}: ${scriptInfo.error}`
+      : 'Script: sin cambios';
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conectado</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #FAF9F6; }
+    .card { background: white; border-radius: 20px; padding: 2.5rem; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 420px; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #1A1A2E; }
+    p { color: #888; font-size: 0.9rem; line-height: 1.5; }
+    .store-id { background: #F0EDE8; border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; font-family: monospace; margin-top: 1rem; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎉</div>
+    <h1>Tu tienda está conectada</h1>
+    <p>La Asesora de Moda ya puede leer tus productos y dar recomendaciones personalizadas.</p>
+    <div class="store-id">Store ID: ${storeId}</div>
+    <p style="margin-top:1rem; font-size:0.78rem; color:#666;">${scriptText}</p>
+    <p style="margin-top:1rem; font-size:0.78rem; color:#aaa;">Podés cerrar esta ventana y volver a tu tienda.</p>
+  </div>
+</body>
+</html>`;
+}
+
+function renderInstallGuideHtml({ installUrl, directAuthorizeUrl, storeDomain = DEMO_STORE_DOMAIN }) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instalar en ${storeDomain}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1A1A2E; background: #FAF9F6; }
+    .card { background: #fff; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 24px rgba(0,0,0,0.06); margin-bottom: 1rem; }
+    h1 { font-size: 1.4rem; margin-top: 0; }
+    code, .mono { font-family: ui-monospace, monospace; background: #F0EDE8; padding: 0.15rem 0.4rem; border-radius: 6px; }
+    a.button { display: inline-block; margin: 0.5rem 0.5rem 0.5rem 0; padding: 0.75rem 1rem; background: #1A1A2E; color: #fff; text-decoration: none; border-radius: 999px; }
+    ol { padding-left: 1.2rem; }
+    .warn { background: #FFF4E5; border-left: 4px solid #C4785A; padding: 0.75rem 1rem; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Instalar Asesora en ${storeDomain}</h1>
+    <p>Store ID demo: <span class="mono">${DEMO_STORE_ID}</span>. Tiendanube <strong>no permite</strong> instalar una app en otra tienda usando el token de spring29: cada tienda necesita su propio OAuth.</p>
+    <div class="warn">
+      Si OAuth te manda a <strong>spring29</strong>, estás logueada en la tienda equivocada. Usá ventana privada o entrá al admin de springdemo desde el Partner Portal.
+    </div>
+  </div>
+  <div class="card">
+    <h2>Método recomendado (Partner Portal)</h2>
+    <ol>
+      <li>Entrá a <a href="https://partners.tiendanube.com">partners.tiendanube.com</a></li>
+      <li>Apps → Asesora de Moda → verificá que la tienda demo sea <strong>springdemo</strong></li>
+      <li>Partner Portal → <strong>Tiendas</strong> → springdemo → ícono ⚙️ (abre el admin de springdemo)</li>
+      <li>En el admin: <strong>Mis aplicaciones</strong> → instalá la app, o usá el botón de abajo</li>
+    </ol>
+    <a class="button" href="${installUrl}">Instalar vía backend</a>
+    <a class="button" href="${directAuthorizeUrl}" style="background:#C4785A">Abrir authorize directo</a>
+  </div>
+  <div class="card">
+    <h2>Si ya autorizaste y tenés el code</h2>
+    <p>Copiá el parámetro <code>code</code> de la URL de callback (vence en 5 min) y pegalo acá:</p>
+    <p><code>${APP_URL}/auth/exchange?code=TU_CODE</code></p>
+    <p>O registrá manualmente un token de springdemo con <code>POST /auth/register-token</code> si configuraste <code>INSTALL_SECRET</code> en Railway.</p>
+  </div>
+</body>
+</html>`;
 }
 
 function saveStores(data) {
