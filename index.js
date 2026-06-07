@@ -6,8 +6,8 @@ const path = require('path');
 
 const app = express();
 
-const CLIENT_ID = process.env.TIENDANUBE_CLIENT_ID;
-const CLIENT_SECRET = process.env.TIENDANUBE_CLIENT_SECRET;
+const CLIENT_ID = (process.env.TIENDANUBE_CLIENT_ID || '').trim();
+const CLIENT_SECRET = (process.env.TIENDANUBE_CLIENT_SECRET || '').trim();
 const APP_URL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 const USER_AGENT = process.env.TIENDANUBE_USER_AGENT || 'AsesoraModa/1.0 (soporte@asesoramoda.com)';
 const STORES_FILE = path.join(__dirname, 'data', 'stores.json');
@@ -70,6 +70,7 @@ app.get('/health', (req, res) => {
     listenPort: Number(process.env.PORT) || 3000,
     stores: Object.keys(stores).length,
     oauthConfigured: Boolean(CLIENT_ID && CLIENT_SECRET),
+    clientIdValid: /^\d+$/.test(CLIENT_ID),
   });
 });
 
@@ -86,6 +87,14 @@ app.get('/auth/install', (req, res) => {
     return res.status(500).json({ error: 'Falta TIENDANUBE_CLIENT_ID en variables de entorno' });
   }
 
+  if (!/^\d+$/.test(CLIENT_ID)) {
+    return res.status(500).json({
+      error: 'TIENDANUBE_CLIENT_ID inválido',
+      hint: 'Debe ser solo números, sin espacios. Revisá la variable en Railway.',
+      received: CLIENT_ID,
+    });
+  }
+
   const params = new URLSearchParams();
   if (req.query.state) {
     params.set('state', String(req.query.state));
@@ -93,7 +102,9 @@ app.get('/auth/install', (req, res) => {
 
   const query = params.toString();
   const authorizeUrl = `https://www.tiendanube.com/apps/${CLIENT_ID}/authorize${query ? `?${query}` : ''}`;
-  res.redirect(authorizeUrl);
+
+  console.log(`OAuth install → ${authorizeUrl}`);
+  res.redirect(302, authorizeUrl);
 });
 
 app.get('/auth/callback', async (req, res) => {
@@ -360,7 +371,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
   console.log(`Asesora de Moda Backend en http://${HOST}:${PORT}`);
-  console.log(`CLIENT_ID: ${CLIENT_ID ? 'ok' : 'FALTA'}`);
+  console.log(`CLIENT_ID: ${CLIENT_ID ? (CLIENT_ID.length <= 6 ? CLIENT_ID : `${CLIENT_ID.slice(0, 3)}…`) : 'FALTA'}`);
+  if (CLIENT_ID && !/^\d+$/.test(CLIENT_ID)) {
+    console.warn('⚠️  TIENDANUBE_CLIENT_ID inválido — revisá espacios en Railway');
+  }
   console.log(`CLIENT_SECRET: ${CLIENT_SECRET ? 'ok' : 'FALTA'}`);
   console.log(`APP_URL: ${APP_URL}`);
   console.log(`CORS: ${allowedOrigins.join(', ')}`);

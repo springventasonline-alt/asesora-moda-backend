@@ -35,7 +35,10 @@ TIENDANUBE_USER_AGENT=AsesoraModa/1.0 (tu-email@dominio.com)
 | Campo | Valor |
 |-------|-------|
 | Redirect URL OAuth | `https://TU-DOMINIO.up.railway.app/auth/callback` |
+| URL de instalación (si el portal la pide) | `https://TU-DOMINIO.up.railway.app/auth/install` |
 | Script URL | `https://TU-DOMINIO.up.railway.app/widget/asesora.js` |
+
+> **Importante:** `TIENDANUBE_CLIENT_ID` debe ser **solo números, sin espacios** (ej. `33646`). Un espacio al final rompe el OAuth (404 en Tiendanube).
 
 ## 4. Verificar
 
