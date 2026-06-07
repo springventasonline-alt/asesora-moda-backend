@@ -26,42 +26,35 @@ if (process.env.TN_STORE_ID && process.env.TN_ACCESS_TOKEN) {
 
 app.set('trust proxy', 1);
 
-const allowedOrigins = (process.env.FRONTEND_URL || '*')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const WIDGET_DIR = path.join(PUBLIC_DIR, 'widget');
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error(`Origen no permitido por CORS: ${origin}`));
-    },
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-app.use(express.json());
-app.use(
-  '/widget',
-  express.static(path.join(__dirname, 'public/widget'), {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('.js')) {
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      }
-    },
-  })
-);
+function setPublicAssetHeaders(res, filePath) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  if (filePath && filePath.endsWith('.js')) {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  }
+}
 
-app.get('/widget/install', (req, res) => {
-  res.json({
-    script_url: `${APP_URL}/widget/asesora.js`,
-    popup_url: `${APP_URL}/widget/popup.html`,
-    oauth_install: `${APP_URL}/auth/install`,
-    health: `${APP_URL}/health`,
-  });
+function isPublicAssetPath(pathname) {
+  return (
+    pathname === '/widget' ||
+    pathname.startsWith('/widget/') ||
+    pathname === '/public' ||
+    pathname.startsWith('/public/')
+  );
+}
+
+// Archivos públicos ANTES de CORS — accesibles desde cualquier tienda Tiendanube
+app.use('/widget', express.static(WIDGET_DIR, { setHeaders: setPublicAssetHeaders }));
+app.use('/public', express.static(PUBLIC_DIR, { setHeaders: setPublicAssetHeaders }));
+
+app.options(['/widget', '/widget/*', '/public', '/public/*'], (req, res) => {
+  setPublicAssetHeaders(res);
+  res.sendStatus(204);
 });
 
 app.get('/health', (req, res) => {
@@ -71,6 +64,37 @@ app.get('/health', (req, res) => {
     stores: Object.keys(stores).length,
     oauthConfigured: Boolean(CLIENT_ID && CLIENT_SECRET),
     clientIdValid: /^\d+$/.test(CLIENT_ID),
+  });
+});
+
+const allowedOrigins = (process.env.FRONTEND_URL || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const apiCors = cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+
+app.use((req, res, next) => {
+  if (isPublicAssetPath(req.path)) return next();
+  return apiCors(req, res, next);
+});
+app.use(express.json());
+
+app.get('/widget/install', (req, res) => {
+  res.json({
+    script_url: `${APP_URL}/widget/asesora.js`,
+    popup_url: `${APP_URL}/widget/popup.html`,
+    oauth_install: `${APP_URL}/auth/install`,
+    health: `${APP_URL}/health`,
   });
 });
 
@@ -390,6 +414,13 @@ function formatPrice(price) {
   if (!price) return '';
   return `$${Number(price).toLocaleString('es-AR')}`;
 }
+
+app.use((err, req, res, next) => {
+  if (err && String(err.message || '').includes('CORS')) {
+    return res.status(403).json({ error: err.message });
+  }
+  next(err);
+});
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
