@@ -275,6 +275,25 @@ function getPartnerAuthTokens() {
 
 async function publishNubeWidgetToPartnerPortal() {
   const widgetPath = path.join(WIDGET_DIR, 'asesora-nube.min.js');
+  return publishPartnerScriptVersion(widgetPath, 'asesora-nube.min.js');
+}
+
+async function publishLegacyWidgetToPartnerPortal() {
+  const widgetPath = path.join(WIDGET_DIR, 'asesora.js');
+  return publishPartnerScriptVersion(widgetPath, 'asesora.js', {
+    patchBody: (versionId) => ({
+      name: 'Asesora de Moda',
+      isInDevelopment: false,
+      usesNubeSdk: false,
+      isAutoInstall: true,
+      event: 'onfirstinteraction',
+      location: 'store',
+      currentVersionId: versionId,
+    }),
+  });
+}
+
+async function publishPartnerScriptVersion(widgetPath, filename, options = {}) {
   const ecosystemBase = `https://services-ecosystem.ms.tiendanube.com/apps/${CLIENT_ID}/scripts/${TN_SCRIPT_ID}`;
   const tokens = getPartnerAuthTokens();
 
@@ -290,7 +309,7 @@ async function publishNubeWidgetToPartnerPortal() {
     const attempt = { auth: token.label, upload: null, activate: null };
     const body = new FormData();
     const blob = new Blob([fs.readFileSync(widgetPath)], { type: 'application/javascript' });
-    body.append('file', blob, 'asesora-nube.min.js');
+    body.append('file', blob, filename);
 
     const uploadRes = await fetch(`${ecosystemBase}/versions`, {
       method: 'POST',
@@ -308,6 +327,9 @@ async function publishNubeWidgetToPartnerPortal() {
     }
 
     const versionId = uploadBody?.id ?? uploadBody?.data?.id ?? null;
+    const patchPayload = options.patchBody
+      ? options.patchBody(versionId)
+      : (versionId ? { activeVersionId: versionId } : { installLatest: true });
     const patchRes = await fetch(ecosystemBase, {
       method: 'PATCH',
       headers: {
@@ -315,7 +337,7 @@ async function publishNubeWidgetToPartnerPortal() {
         'User-Agent': USER_AGENT,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(versionId ? { activeVersionId: versionId } : { installLatest: true }),
+      body: JSON.stringify(patchPayload),
     });
     const patchText = await patchRes.text();
     let patchBody = null;
@@ -328,13 +350,13 @@ async function publishNubeWidgetToPartnerPortal() {
         ok: true,
         auth: token.label,
         version_id: versionId,
-        widget_url: `${APP_URL}/widget/asesora-nube.min.js`,
+        widget_url: `${APP_URL}/widget/${filename}`,
         attempts,
       };
     }
   }
 
-  return { ok: false, error: 'No se pudo publicar asesora-nube.min.js', attempts };
+  return { ok: false, error: `No se pudo publicar ${filename}`, attempts };
 }
 
 app.get('/auth/publish-nube-widget/capabilities', (req, res) => {
