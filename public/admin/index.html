@@ -815,16 +815,38 @@ function loadPhoto(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    const src = e.target.result;
-    const preview = document.getElementById('advisor-photo-preview');
-    preview.src = src; preview.style.display = 'block';
-    document.getElementById('photo-placeholder').style.display = 'none';
-    // update preview panel
-    const prevImg = document.getElementById('prev-avatar-img');
-    prevImg.src = src; prevImg.style.display = 'block';
-    document.getElementById('prev-avatar-emoji').style.display = 'none';
+    compressPhotoDataUrl(e.target.result, 480, 0.82).then((src) => {
+      const preview = document.getElementById('advisor-photo-preview');
+      preview.src = src;
+      preview.style.display = 'block';
+      document.getElementById('photo-placeholder').style.display = 'none';
+      const prevImg = document.getElementById('prev-avatar-img');
+      prevImg.src = src;
+      prevImg.style.display = 'block';
+      document.getElementById('prev-avatar-emoji').style.display = 'none';
+    });
   };
   reader.readAsDataURL(file);
+}
+
+function compressPhotoDataUrl(dataUrl, maxSize, quality) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const scale = Math.min(1, maxSize / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 // ── VIDEO ──
@@ -958,14 +980,16 @@ async function saveConfig() {
       body: JSON.stringify(config)
     });
     if (res.ok) {
+      localStorage.removeItem('asesora_config');
       showToast('✅ Cambios guardados correctamente');
     } else {
-      showToast('⚠️ Guardado local (sin conexión al servidor)');
+      const detail = await res.text().catch(() => '');
+      showToast(`⚠️ Error al guardar (${res.status}). ${detail.slice(0, 80)}`);
       localStorage.setItem('asesora_config', JSON.stringify(config));
     }
   } catch(e) {
     localStorage.setItem('asesora_config', JSON.stringify(config));
-    showToast('💾 Guardado localmente');
+    showToast('⚠️ Sin conexión — guardado solo en este navegador');
   }
 
   btn.disabled = false; btn.textContent = 'Guardar cambios';

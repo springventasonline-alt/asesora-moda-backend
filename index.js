@@ -149,7 +149,7 @@ app.use((req, res, next) => {
   if (isPublicAssetPath(req.path) || isWebhookPath(req.path)) return next();
   return apiCors(req, res, next);
 });
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.post('/webhooks/redact-store', (req, res) => {
   handleLgpdWebhook(req, res, 'store/redact');
@@ -360,13 +360,17 @@ async function publishPartnerScriptVersion(widgetPath, filename, options = {}) {
 }
 
 app.get('/auth/publish-nube-widget/capabilities', (req, res) => {
-  const widgetPath = path.join(WIDGET_DIR, 'asesora-nube.min.js');
+  const nubePath = path.join(WIDGET_DIR, 'asesora-nube.min.js');
+  const legacyPath = path.join(WIDGET_DIR, 'asesora.js');
   res.json({
     app_id: CLIENT_ID,
     script_id: TN_SCRIPT_ID,
-    widget_path: widgetPath,
-    widget_exists: fs.existsSync(widgetPath),
-    widget_bytes: fs.existsSync(widgetPath) ? fs.statSync(widgetPath).size : 0,
+    widget_path: nubePath,
+    widget_exists: fs.existsSync(nubePath),
+    widget_bytes: fs.existsSync(nubePath) ? fs.statSync(nubePath).size : 0,
+    legacy_path: legacyPath,
+    legacy_exists: fs.existsSync(legacyPath),
+    legacy_bytes: fs.existsSync(legacyPath) ? fs.statSync(legacyPath).size : 0,
     auth_methods: getPartnerAuthTokens().map((t) => t.label),
   });
 });
@@ -379,6 +383,20 @@ app.post('/auth/publish-nube-widget', async (req, res) => {
 
   try {
     const result = await publishNubeWidgetToPartnerPortal();
+    res.status(result.ok ? 200 : 502).json(result);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/auth/publish-legacy-widget', async (req, res) => {
+  const setupKey = String(req.body?.key || req.headers['x-setup-key'] || req.query?.key || '').trim();
+  if (setupKey !== SETUP_KEY) {
+    return res.status(403).json({ error: 'Setup key inválida' });
+  }
+
+  try {
+    const result = await publishLegacyWidgetToPartnerPortal();
     res.status(result.ok ? 200 : 502).json(result);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

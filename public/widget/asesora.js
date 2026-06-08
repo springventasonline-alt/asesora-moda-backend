@@ -212,13 +212,26 @@
       return;
     }
 
+    function maybeAutoOpen(config) {
+      if (config && config.show_popup === false) return;
+      var seenKey = 'asesora_welcome_seen_' + storeId;
+      if (sessionStorage.getItem(seenKey)) return;
+      setTimeout(function () {
+        openPopup(appBase, storeId);
+        sessionStorage.setItem(seenKey, '1');
+      }, 1200);
+    }
+
     function start(config) {
+      config = config || {};
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
           mount(appBase, storeId, config);
+          maybeAutoOpen(config);
         });
       } else {
         mount(appBase, storeId, config);
+        maybeAutoOpen(config);
       }
     }
 
