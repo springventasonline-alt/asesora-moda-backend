@@ -619,7 +619,12 @@ app.get('/productos/:store_id', async (req, res) => {
     }
 
     const allProducts = await productsRes.json();
-    const filtered = filterByProfile(allProducts, { tipo_cuerpo, estilo, altura });
+    let filtered = filterByProfile(allProducts, { tipo_cuerpo, estilo, altura });
+    const tagsBuscados = buildTags({ tipo_cuerpo, estilo, altura });
+    const usedFallback = filtered.length === 0 && allProducts.length > 0;
+    if (usedFallback) {
+      filtered = allProducts.filter((p) => p.published !== false);
+    }
 
     const formatted = filtered.map((product) => ({
       id: product.id,
@@ -634,7 +639,8 @@ app.get('/productos/:store_id', async (req, res) => {
     res.json({
       store_id,
       perfil: { tipo_cuerpo, estilo, altura },
-      tags_buscados: buildTags({ tipo_cuerpo, estilo, altura }),
+      tags_buscados: tagsBuscados,
+      fallback_sin_tags: usedFallback,
       total: formatted.length,
       productos: formatted,
     });

@@ -1,18 +1,11 @@
 /**
  * Asesora de Moda — Script LEGACY (sin NubeSDK)
- *
- * Partner Portal con "Uses NubeSDK" DESACTIVADO:
- *   https://asesora-moda-backend-production.up.railway.app/widget/asesora.js
- *
- * Partner Portal con "Uses NubeSDK" ACTIVADO → usar asesora-nube.min.js
  */
 (function () {
   'use strict';
 
   if (typeof document === 'undefined') {
-    console.warn(
-      '[asesora-moda] Este script es legacy (DOM). Con NubeSDK activado usá /widget/asesora-nube.min.js',
-    );
+    console.warn('[asesora-moda] Script legacy requiere DOM.');
     return;
   }
 
@@ -43,11 +36,11 @@
     }
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
-      var src = scripts[i].src || '';
-      if (isHostedOnAppsCdn(src)) return DEFAULT_APP_BASE;
-      if (src.indexOf('/widget/asesora') !== -1) {
+      var s = scripts[i].src || '';
+      if (isHostedOnAppsCdn(s)) return DEFAULT_APP_BASE;
+      if (s.indexOf('/widget/asesora') !== -1) {
         try {
-          return new URL(src).origin;
+          return new URL(s).origin;
         } catch (e2) {
           /* ignore */
         }
@@ -81,19 +74,29 @@
     return null;
   }
 
-  function injectStyles() {
+  function injectStyles(config) {
     if (document.getElementById('asesora-moda-styles')) return;
+    var primary = (config && config.color_primary) || '#1A1A2E';
+    var accent = (config && config.color_accent) || '#C8956C';
     var style = document.createElement('style');
     style.id = 'asesora-moda-styles';
     style.textContent = [
-      '#' + TRIGGER_ID + '{',
-      'position:fixed;bottom:1.5rem;right:1rem;z-index:99998;',
-      'background:#1A1A2E;color:#fff;border:none;border-radius:50px;',
-      'padding:0.85rem 1.3rem;font-family:Outfit,system-ui,sans-serif;',
-      'font-size:0.82rem;font-weight:500;cursor:pointer;',
-      'box-shadow:0 8px 32px rgba(0,0,0,0.35);display:flex;align-items:center;gap:0.5rem;',
+      '@keyframes asesoraPulse {',
+      '0%,100%{box-shadow:0 10px 40px rgba(0,0,0,0.35),0 0 0 0 rgba(200,149,108,0.4)}',
+      '50%{box-shadow:0 12px 44px rgba(0,0,0,0.4),0 0 0 8px rgba(200,149,108,0.15)}',
       '}',
-      '#' + TRIGGER_ID + ':hover{background:#C4785A;transform:scale(1.03);}',
+      '#' + TRIGGER_ID + '{',
+      'position:fixed;bottom:1.25rem;right:1rem;left:1rem;z-index:99998;',
+      'background:' + primary + ';color:#fff;border:none;border-radius:999px;',
+      'padding:1rem 1.35rem;font-family:Outfit,system-ui,sans-serif;',
+      'font-size:0.95rem;font-weight:600;cursor:pointer;',
+      'box-shadow:0 10px 40px rgba(0,0,0,0.35);',
+      'display:flex;align-items:center;justify-content:center;gap:0.55rem;',
+      'max-width:420px;margin-left:auto;animation:asesoraPulse 2.8s ease-in-out infinite;',
+      'line-height:1.2;text-align:left;',
+      '}',
+      '#' + TRIGGER_ID + ':hover{background:' + accent + ';transform:scale(1.02);}',
+      '#' + TRIGGER_ID + '.hidden{display:none !important;}',
       '#' + OVERLAY_ID + '{',
       'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);',
       'display:none;align-items:flex-end;justify-content:center;',
@@ -103,35 +106,38 @@
       'width:100%;max-width:480px;height:92vh;border:none;border-radius:20px 20px 0 0;',
       'background:#FAF9F6;',
       '}',
-      '@media (max-width:600px){#' + IFRAME_ID + '{height:100vh;border-radius:0;max-width:100%;}}',
+      '@media (max-width:600px){',
+      '#' + TRIGGER_ID + '{left:0.75rem;right:0.75rem;max-width:none;}',
+      '#' + IFRAME_ID + '{height:100vh;border-radius:0;max-width:100%;}',
+      '}',
     ].join('');
     document.head.appendChild(style);
   }
 
   function buildPopupUrl(appBase, storeId) {
-    var params = new URLSearchParams({
-      embed: '1',
-      api: appBase,
-      store: storeId,
-    });
+    var params = new URLSearchParams({ embed: '1', api: appBase, store: storeId });
     return appBase + '/widget/popup.html?' + params.toString();
   }
 
   function openPopup(appBase, storeId) {
     var overlay = document.getElementById(OVERLAY_ID);
     var iframe = document.getElementById(IFRAME_ID);
+    var trigger = document.getElementById(TRIGGER_ID);
     if (!overlay || !iframe) return;
     iframe.src = buildPopupUrl(appBase, storeId);
     overlay.classList.add('open');
+    if (trigger) trigger.classList.add('hidden');
     document.body.style.overflow = 'hidden';
   }
 
   function closePopup() {
     var overlay = document.getElementById(OVERLAY_ID);
     var iframe = document.getElementById(IFRAME_ID);
+    var trigger = document.getElementById(TRIGGER_ID);
     if (!overlay) return;
     overlay.classList.remove('open');
     document.body.style.overflow = '';
+    if (trigger) trigger.classList.remove('hidden');
     if (iframe) iframe.src = 'about:blank';
   }
 
@@ -148,11 +154,12 @@
 
   function applyTriggerConfig(trigger, config) {
     if (!config || !trigger) return;
-    var label = config.trigger_text || '👗 ¿Qué me queda bien?';
+    var label = config.trigger_text || '👗 Asesoramiento personalizado — ¿Qué me queda bien?';
+    var accent = config.color_accent || '#C8956C';
     trigger.innerHTML =
-      '<span style="width:8px;height:8px;border-radius:50%;background:' +
-      (config.color_accent || '#E8A87C') +
-      ';display:inline-block"></span><span>' +
+      '<span style="width:10px;height:10px;border-radius:50%;background:' +
+      accent +
+      ';display:inline-block;flex-shrink:0"></span><span>' +
       label +
       '</span>';
     if (config.color_primary) trigger.style.background = config.color_primary;
@@ -161,7 +168,7 @@
   function mount(appBase, storeId, config) {
     if (document.getElementById(ROOT_ID)) return;
 
-    injectStyles();
+    injectStyles(config);
 
     var root = document.createElement('div');
     root.id = ROOT_ID;
@@ -184,7 +191,7 @@
     var iframe = document.createElement('iframe');
     iframe.id = IFRAME_ID;
     iframe.title = 'Asesora de Moda';
-    iframe.setAttribute('allow', 'clipboard-write');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
     overlay.appendChild(iframe);
 
     root.appendChild(trigger);
@@ -197,7 +204,17 @@
       closePopup();
     });
 
-    console.info('[asesora-moda] Botón montado (legacy)', { storeId: storeId, appBase: appBase });
+    console.info('[asesora-moda] Widget montado', { storeId: storeId, appBase: appBase });
+  }
+
+  function maybeAutoOpen(appBase, storeId, config) {
+    if (config && config.show_popup === false) return;
+    var seenKey = 'asesora_welcome_seen_' + storeId;
+    if (sessionStorage.getItem(seenKey)) return;
+    setTimeout(function () {
+      openPopup(appBase, storeId);
+      sessionStorage.setItem(seenKey, '1');
+    }, 900);
   }
 
   function init() {
@@ -208,30 +225,20 @@
       return;
     }
     if (!storeId) {
-      console.warn('[asesora-moda] No se detectó store_id (LS.store.id ni ?store= en script)');
+      console.warn('[asesora-moda] No se detectó store_id');
       return;
-    }
-
-    function maybeAutoOpen(config) {
-      if (config && config.show_popup === false) return;
-      var seenKey = 'asesora_welcome_seen_' + storeId;
-      if (sessionStorage.getItem(seenKey)) return;
-      setTimeout(function () {
-        openPopup(appBase, storeId);
-        sessionStorage.setItem(seenKey, '1');
-      }, 1200);
     }
 
     function start(config) {
       config = config || {};
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-          mount(appBase, storeId, config);
-          maybeAutoOpen(config);
-        });
-      } else {
+      function boot() {
         mount(appBase, storeId, config);
-        maybeAutoOpen(config);
+        maybeAutoOpen(appBase, storeId, config);
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+      } else {
+        boot();
       }
     }
 

@@ -820,6 +820,23 @@ body.embed-mode #welcome-overlay { display: flex !important; }
   transition: all 0.2s;
 }
 .welcome-cta:hover { opacity: 0.85; transform: scale(1.01); }
+.welcome-video-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  margin: 0 0 1rem;
+  border-radius: 0;
+  overflow: hidden;
+}
+.welcome-video-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+body.embed-mode .welcome-video-wrap {
+  margin-top: 0;
+}
 </style>
 </head>
 <body>
@@ -837,6 +854,7 @@ body.embed-mode #welcome-overlay { display: flex !important; }
   <input class="cfg-input" id="cfg-welcome-msg" value="¡Hola! 👋 Te asesoramos para que encuentres exactamente lo que más te favorece según tu cuerpo y estilo." oninput="applyConfig()" placeholder="Mensaje bienvenida" style="width:280px">
   <input class="cfg-input" id="cfg-welcome-msg2" value="Solo te hago unas preguntas rápidas y te armo una selección personalizada 🎯" oninput="applyConfig()" placeholder="Segundo mensaje" style="width:250px">
   <input class="cfg-input" id="cfg-welcome-cta" value="¡Empezar mi asesoramiento! →" oninput="applyConfig()" placeholder="Botón bienvenida" style="width:200px">
+  <input type="hidden" id="cfg-video" value="">
   <label class="cfg-badge" style="cursor:pointer;background:#333">
     📷 Foto asesora
     <input type="file" accept="image/*" style="display:none" onchange="loadAdvisorPhoto(this)">
@@ -922,6 +940,10 @@ body.embed-mode #welcome-overlay { display: flex !important; }
     <div class="welcome-handle"></div>
     <button class="welcome-close" onclick="closeWelcome()">✕</button>
     <div class="welcome-body">
+
+      <div class="welcome-video-wrap" id="welcome-video-wrap" style="display:none">
+        <iframe id="welcome-video-iframe" title="Video de bienvenida" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
 
       <div class="welcome-avatar-wrap">
         <div class="welcome-avatar-placeholder" id="welcome-avatar-placeholder">👩</div>
@@ -1260,11 +1282,46 @@ const ESTILO_API_MAP = {
   romantica: 'romantica',
 };
 
+let remoteConfig = { show_video: true, show_popup: true };
+
+function normalizeYoutubeEmbed(url) {
+  let src = String(url || '').trim();
+  if (!src) return '';
+  if (src.includes('youtube.com/watch?v=')) src = src.replace('watch?v=', 'embed/');
+  else if (src.includes('youtu.be/')) src = 'https://www.youtube.com/embed/' + src.split('youtu.be/')[1].split(/[?&]/)[0];
+  else if (src.includes('youtube.com/shorts/')) src = src.replace('youtube.com/shorts/', 'youtube.com/embed/');
+  if (src.includes('embed/') && !src.includes('autoplay')) {
+    src += (src.includes('?') ? '&' : '?') + 'rel=0&modestbranding=1';
+  }
+  return src;
+}
+
+function applyWelcomeVideo() {
+  const wrap = document.getElementById('welcome-video-wrap');
+  const iframe = document.getElementById('welcome-video-iframe');
+  if (!wrap || !iframe) return;
+
+  const showVideo = remoteConfig.show_video !== false;
+  const raw = remoteConfig.video_url || document.getElementById('cfg-video')?.value || '';
+  const src = normalizeYoutubeEmbed(raw);
+
+  if (showVideo && src) {
+    iframe.src = src;
+    wrap.style.display = 'block';
+  } else {
+    iframe.src = '';
+    wrap.style.display = 'none';
+  }
+}
+
 // ═══════════════════════════
 // WELCOME POPUP
 // ═══════════════════════════
 function initWelcome() {
-  // Mostrar typing dots, luego mensajes con delay
+  applyWelcomeVideo();
+  const hasVideo = document.getElementById('welcome-video-wrap')?.style.display === 'block';
+  const typingDelay = hasVideo ? 2400 : 1800;
+
   setTimeout(() => {
     document.getElementById('welcome-typing').style.display = 'none';
     document.getElementById('welcome-bubble').style.display = 'block';
@@ -1277,7 +1334,7 @@ function initWelcome() {
         document.getElementById('welcome-cta-btn').style.animation = 'fadeUp 0.3s ease';
       }, 600);
     }, 800);
-  }, 1800);
+  }, typingDelay);
 }
 
 function closeWelcome() {
@@ -1383,6 +1440,7 @@ function toggleStyle(val, el) {
 // ═══════════════════════════
 function applyRemoteConfig(cfg) {
   if (!cfg || typeof cfg !== 'object') return;
+  remoteConfig = { ...remoteConfig, ...cfg };
 
   const setVal = (id, val) => {
     const el = document.getElementById(id);
@@ -1400,6 +1458,27 @@ function applyRemoteConfig(cfg) {
   setVal('cfg-font', cfg.font);
   setVal('cfg-video', cfg.video_url);
 
+  if (cfg.advisor_name) {
+    const nameEl = document.getElementById('welcome-name-text');
+    if (nameEl) nameEl.textContent = cfg.advisor_name;
+  }
+  if (cfg.advisor_role) {
+    const roleEl = document.getElementById('welcome-role-text');
+    if (roleEl) roleEl.textContent = cfg.advisor_role;
+  }
+  if (cfg.welcome_msg) {
+    const msgEl = document.getElementById('welcome-msg-text');
+    if (msgEl) msgEl.textContent = cfg.welcome_msg;
+  }
+  if (cfg.welcome_msg2) {
+    const msg2El = document.getElementById('welcome-msg2-text');
+    if (msg2El) msg2El.textContent = cfg.welcome_msg2;
+  }
+  if (cfg.cta_text) {
+    const ctaEl = document.getElementById('welcome-cta-text');
+    if (ctaEl) ctaEl.textContent = cfg.cta_text;
+  }
+
   if (cfg.advisor_photo) {
     const img = document.getElementById('welcome-avatar-img');
     const placeholder = document.getElementById('welcome-avatar-placeholder');
@@ -1410,6 +1489,7 @@ function applyRemoteConfig(cfg) {
     if (placeholder) placeholder.style.display = 'none';
   }
 
+  applyWelcomeVideo();
   applyConfig();
 }
 
@@ -1469,24 +1549,23 @@ function applyConfig() {
   setText('final-cta-sub',   document.getElementById('cfg-cta-sub').value);
   setText('final-cta-btn',   document.getElementById('cfg-cta-btn').value);
 
-  // Video
-  const video = document.getElementById('cfg-video').value.trim();
-  const wrap = document.getElementById('video-wrap');
-  const iframe = document.getElementById('video-iframe');
-  const placeholder = document.getElementById('video-placeholder');
-  if (video) {
-    let src = video;
-    if (video.includes('youtube.com/watch?v=')) src = video.replace('watch?v=', 'embed/');
-    else if (video.includes('youtu.be/')) src = video.replace('youtu.be/', 'youtube.com/embed/');
-    wrap.classList.add('visible');
-    iframe.src = src;
-    iframe.style.display = 'block';
-    placeholder.style.display = 'none';
-  } else {
-    wrap.classList.remove('visible');
-    iframe.src = '';
-    iframe.style.display = 'none';
-    placeholder.style.display = 'flex';
+  // Video (welcome + legacy quiz block si existe)
+  applyWelcomeVideo();
+  const legacyWrap = document.getElementById('video-wrap');
+  const legacyIframe = document.getElementById('video-iframe');
+  const legacyPlaceholder = document.getElementById('video-placeholder');
+  const video = document.getElementById('cfg-video')?.value.trim() || remoteConfig.video_url || '';
+  if (legacyWrap && legacyIframe) {
+    if (video) {
+      legacyIframe.src = normalizeYoutubeEmbed(video);
+      legacyIframe.style.display = 'block';
+      legacyWrap.classList.add('visible');
+      if (legacyPlaceholder) legacyPlaceholder.style.display = 'none';
+    } else {
+      legacyIframe.src = '';
+      legacyWrap.classList.remove('visible');
+      if (legacyPlaceholder) legacyPlaceholder.style.display = 'flex';
+    }
   }
 
   localStorage.setItem('asesora_api', document.getElementById('cfg-api-url').value.trim());
@@ -1628,6 +1707,16 @@ async function buildResults() {
           renderProducts('prod-pantalones', grouped.pantalones.slice(0, 6));
           renderProducts('prod-tops', grouped.tops.slice(0, 6));
           renderProducts('prod-vestidos', grouped.vestidos.slice(0, 6));
+          renderTips();
+          return;
+        }
+
+        // Sin tags exactos: mostrar catálogo general si el API devolvió productos
+        if ((data.productos || []).length > 0) {
+          const allGrouped = groupApiProducts(data.productos);
+          renderProducts('prod-pantalones', allGrouped.pantalones.slice(0, 6));
+          renderProducts('prod-tops', allGrouped.tops.slice(0, 6));
+          renderProducts('prod-vestidos', allGrouped.vestidos.slice(0, 6));
           renderTips();
           return;
         }
