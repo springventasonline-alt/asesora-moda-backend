@@ -22,18 +22,29 @@
   var IFRAME_ID = 'asesora-moda-iframe';
   var OVERLAY_ID = 'asesora-moda-overlay';
 
+  function isHostedOnAppsCdn(src) {
+    return /apps-scripts\.tiendanube\.com/i.test(src || '');
+  }
+
   function getAppBase() {
     var script = document.currentScript;
-    if (script && script.src) {
-      try {
-        return new URL(script.src).origin;
-      } catch (e) {
-        /* ignore */
+    if (script) {
+      var fromData = script.getAttribute('data-app-base');
+      if (fromData) return String(fromData).replace(/\/$/, '');
+      var src = script.src || '';
+      if (isHostedOnAppsCdn(src)) return DEFAULT_APP_BASE;
+      if (src) {
+        try {
+          return new URL(src).origin;
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
       var src = scripts[i].src || '';
+      if (isHostedOnAppsCdn(src)) return DEFAULT_APP_BASE;
       if (src.indexOf('/widget/asesora') !== -1) {
         try {
           return new URL(src).origin;
