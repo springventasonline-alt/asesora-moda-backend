@@ -114,17 +114,29 @@
     document.head.appendChild(style);
   }
 
-  function buildPopupUrl(appBase, storeId) {
+  function buildPopupUrl(appBase, storeId, config) {
     var params = new URLSearchParams({ embed: '1', api: appBase, store: storeId });
+    if (config) {
+      if (config.advisor_name)  params.set('cn', config.advisor_name);
+      if (config.advisor_role)  params.set('cr', config.advisor_role);
+      if (config.advisor_photo) params.set('cp', config.advisor_photo);
+      if (config.welcome_msg)   params.set('cm1', config.welcome_msg);
+      if (config.welcome_msg2)  params.set('cm2', config.welcome_msg2);
+      if (config.cta_text)      params.set('cta', config.cta_text);
+      if (config.color_primary) params.set('pri', config.color_primary);
+      if (config.color_accent)  params.set('acc', config.color_accent);
+      if (config.show_video === false) params.set('sv', '0');
+      if (config.video_url)     params.set('vu', config.video_url);
+    }
     return appBase + '/widget/popup.html?' + params.toString();
   }
 
-  function openPopup(appBase, storeId) {
+  function openPopup(appBase, storeId, config) {
     var overlay = document.getElementById(OVERLAY_ID);
     var iframe = document.getElementById(IFRAME_ID);
     var trigger = document.getElementById(TRIGGER_ID);
     if (!overlay || !iframe) return;
-    iframe.src = buildPopupUrl(appBase, storeId);
+    iframe.src = buildPopupUrl(appBase, storeId, config);
     overlay.classList.add('open');
     if (trigger) trigger.classList.add('hidden');
     document.body.style.overflow = 'hidden';
@@ -181,7 +193,7 @@
     trigger.classList.add('hidden');
     applyTriggerConfig(trigger, config);
     trigger.addEventListener('click', function () {
-      openPopup(appBase, storeId);
+      openPopup(appBase, storeId, config);
     });
 
     var overlay = document.createElement('div');
@@ -224,7 +236,7 @@
     }
     // Primera visita: auto-abrir sin mostrar el botón primero
     setTimeout(function () {
-      openPopup(appBase, storeId);
+      openPopup(appBase, storeId, config);
       sessionStorage.setItem(seenKey, '1');
     }, 400);
   }

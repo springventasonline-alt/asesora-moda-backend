@@ -841,7 +841,34 @@ body.embed-mode .welcome-video-wrap {
 }
 </style>
 </head>
-<body><script>if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed-mode');</script>
+<body><script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  if(q.get('embed')==='1'){
+    document.body.classList.add('embed-mode');
+    // Aplicar config de URL inmediatamente — sin esperar fetch
+    function setText(id,v){var e=document.getElementById(id);if(e&&v)e.textContent=v;}
+    function setStyle(prop,v){if(v)document.documentElement.style.setProperty(prop,v);}
+    // Esperar a que el DOM esté listo para aplicar al HTML
+    document.addEventListener('DOMContentLoaded',function(){
+      setText('welcome-name-text', q.get('cn'));
+      setText('welcome-role-text', q.get('cr'));
+      setText('welcome-msg-text',  q.get('cm1'));
+      setText('welcome-msg2-text', q.get('cm2'));
+      setText('welcome-cta-text',  q.get('cta'));
+      setStyle('--primary', q.get('pri'));
+      setStyle('--accent',  q.get('acc'));
+      var photo = q.get('cp');
+      if(photo){
+        var img = document.getElementById('welcome-avatar-img');
+        var ph  = document.getElementById('welcome-avatar-placeholder');
+        if(img){img.src=photo;img.style.display='block';}
+        if(ph) ph.style.display='none';
+      }
+    });
+  }
+})();
+</script>
 
 <!-- ═══════════════════════════════
      CONFIG BAR
