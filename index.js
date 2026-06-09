@@ -670,13 +670,26 @@ app.get('/config/:store_id', (req, res) => {
   res.json(getConfigForStore(storeId));
 });
 
+const SEED_CONFIGS_FILE = path.join(__dirname, 'seed-configs.json');
+
 function loadConfigs() {
+  // 1. Intentar datos guardados en runtime (data/configs.json)
   try {
     if (fs.existsSync(CONFIGS_FILE)) {
-      return JSON.parse(fs.readFileSync(CONFIGS_FILE, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(CONFIGS_FILE, 'utf8'));
+      if (Object.keys(parsed).length > 0) return parsed;
     }
   } catch (err) {
     console.warn('No se pudo leer configs.json:', err.message);
+  }
+  // 2. Fallback: seed-configs.json commiteado en el repo (persiste entre deploys)
+  try {
+    if (fs.existsSync(SEED_CONFIGS_FILE)) {
+      console.info('[config] Usando seed-configs.json como base inicial');
+      return JSON.parse(fs.readFileSync(SEED_CONFIGS_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.warn('No se pudo leer seed-configs.json:', err.message);
   }
   return {};
 }

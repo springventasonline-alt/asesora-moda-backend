@@ -1,0 +1,19 @@
+{
+  "6125057": {
+    "advisor_name": "Silvanita",
+    "advisor_role": "40 años asesorando en la tienda física, ¡ahora estoy por acá!",
+    "advisor_photo": "https://asesora-moda-backend-production.up.railway.app/widget/sil.jpg",
+    "video_url": "https://youtu.be/6mipmVHH30U",
+    "welcome_msg": "Te ayudo a encontrar de nuestra tienda lo que más te favorece según tu cuerpo y estilo.",
+    "welcome_msg2": "Solo te hago unas preguntas rápidas y avanzamos! 🎯",
+    "cta_text": "¡Empezar mi asesoramiento! →",
+    "trigger_text": "👗 quiero productos pensados para mi",
+    "color_primary": "#1A1A2E",
+    "color_accent": "#C8956C",
+    "font": "Cormorant Garamond",
+    "show_video": true,
+    "show_popup": true,
+    "show_price": true,
+    "new_tab": true
+  }
+}
