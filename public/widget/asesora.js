@@ -154,7 +154,7 @@
 
   function applyTriggerConfig(trigger, config) {
     if (!config || !trigger) return;
-    var label = config.trigger_text || '👗 Asesoramiento personalizado — ¿Qué me queda bien?';
+    var label = config.trigger_text || '👗 quiero productos pensados para mi';
     var accent = config.color_accent || '#C8956C';
     trigger.innerHTML =
       '<span style="width:10px;height:10px;border-radius:50%;background:' +

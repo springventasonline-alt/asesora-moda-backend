@@ -729,20 +729,22 @@ body.embed-mode #welcome-overlay { display: flex !important; }
   margin-bottom: 1rem;
 }
 .welcome-avatar {
-  width: 88px; height: 88px;
+  width: 120px; height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--accent);
+  border: 4px solid var(--accent);
   display: block;
   background: var(--soft);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
 }
 .welcome-avatar-placeholder {
-  width: 88px; height: 88px;
+  width: 120px; height: 120px;
   border-radius: 50%;
   background: var(--soft);
-  border: 3px solid var(--accent);
+  border: 4px solid var(--accent);
   display: flex; align-items: center; justify-content: center;
-  font-size: 2.2rem;
+  font-size: 3rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
 .welcome-online {
   position: absolute; bottom: 4px; right: 4px;
@@ -1132,47 +1134,47 @@ body.embed-mode .welcome-video-wrap {
       <button class="back-btn" onclick="goTo(4)">←</button>
       <span class="step-counter">PASO 5 DE 6</span>
     </div>
-    <div class="quiz-title"><span id="step5-title-text">¿Cómo te gusta vestir?</span></div>
+    <div class="quiz-title"><span id="step5-title-text">¿Cuál es la ocasión?</span></div>
     <div class="quiz-sub">Podés elegir más de uno</div>
 
     <div class="options-grid cols1">
-      <div class="opt-card" onclick="toggleStyle('casual',this)">
-        <div class="opt-emoji">👖</div>
-        <div class="opt-info">
-          <div class="opt-name">Casual / Día a día</div>
-          <div class="opt-desc">Cómoda, práctica y siempre bien</div>
-        </div>
-        <div class="opt-check">✓</div>
-      </div>
-      <div class="opt-card" onclick="toggleStyle('arreglada',this)">
-        <div class="opt-emoji">👗</div>
-        <div class="opt-info">
-          <div class="opt-name">Arreglada / Elegante</div>
-          <div class="opt-desc">Para salidas, trabajo o eventos</div>
-        </div>
-        <div class="opt-check">✓</div>
-      </div>
       <div class="opt-card" onclick="toggleStyle('sport',this)">
         <div class="opt-emoji">🏃‍♀️</div>
         <div class="opt-info">
-          <div class="opt-name">Sporty / Activa</div>
-          <div class="opt-desc">Movimiento, comodidad y estilo</div>
+          <div class="opt-name">Sport</div>
+          <div class="opt-desc">Movimiento, comodidad y estilo activo</div>
         </div>
         <div class="opt-check">✓</div>
       </div>
-      <div class="opt-card" onclick="toggleStyle('trendy',this)">
+      <div class="opt-card" onclick="toggleStyle('formal',this)">
+        <div class="opt-emoji">👔</div>
+        <div class="opt-info">
+          <div class="opt-name">Formal</div>
+          <div class="opt-desc">Eventos, reuniones y ocasiones especiales</div>
+        </div>
+        <div class="opt-check">✓</div>
+      </div>
+      <div class="opt-card" onclick="toggleStyle('laboral',this)">
+        <div class="opt-emoji">💼</div>
+        <div class="opt-info">
+          <div class="opt-name">Laboral</div>
+          <div class="opt-desc">Profesional y cómoda para el trabajo</div>
+        </div>
+        <div class="opt-check">✓</div>
+      </div>
+      <div class="opt-card" onclick="toggleStyle('salida',this)">
         <div class="opt-emoji">✨</div>
         <div class="opt-info">
-          <div class="opt-name">Trendy / Moderna</div>
-          <div class="opt-desc">Siempre al día con las tendencias</div>
+          <div class="opt-name">Salida</div>
+          <div class="opt-desc">Para salir de noche, fiestas y reuniones</div>
         </div>
         <div class="opt-check">✓</div>
       </div>
-      <div class="opt-card" onclick="toggleStyle('romantica',this)">
-        <div class="opt-emoji">🌸</div>
+      <div class="opt-card" onclick="toggleStyle('comfy',this)">
+        <div class="opt-emoji">😌</div>
         <div class="opt-info">
-          <div class="opt-name">Romántica / Femenina</div>
-          <div class="opt-desc">Detalles, texturas y suavidad</div>
+          <div class="opt-name">Comfy</div>
+          <div class="opt-desc">Relajada, casual y siempre cómoda</div>
         </div>
         <div class="opt-check">✓</div>
       </div>
@@ -1275,11 +1277,11 @@ function notifyParentClose() {
 }
 
 const ESTILO_API_MAP = {
-  casual: 'casual',
-  arreglada: 'elegante',
   sport: 'sport',
-  trendy: 'trendy',
-  romantica: 'romantica',
+  formal: 'elegante',
+  laboral: 'laboral',
+  salida: 'trendy',
+  comfy: 'casual',
 };
 
 let remoteConfig = { show_video: true, show_popup: true };
@@ -1665,8 +1667,8 @@ const skinLabels = { 'muy-clara': 'Piel muy clara', 'clara': 'Piel clara', 'medi
 const hairLabels = { 'rubio-claro': 'Rubio claro', 'rubio': 'Rubia', 'castano-claro': 'Castaña clara', 'castano': 'Castaña', 'castano-oscuro': 'Castaña oscura', 'negro': 'Morocha', 'pelirroja': 'Pelirroja', 'canoso': 'Canosa', 'fantasia': 'Pelo fantasia' };
 const heightLabels = { baja: 'Baja', media: 'Media', alta: 'Alta' };
 const bodyLabels = { X: 'Reloj de arena', O: 'Redonda', H: 'Rectangular', A: 'Triángulo / Pera', V: 'Triángulo inv.' };
-const styleLabels = { casual: 'Casual', arreglada: 'Elegante', sport: 'Sporty', trendy: 'Trendy', romantica: 'Romántica' };
-const styleEmojis = { casual: '👖', arreglada: '👗', sport: '🏃', trendy: '✨', romantica: '🌸' };
+const styleLabels = { sport: 'Sport', formal: 'Formal', laboral: 'Laboral', salida: 'Salida', comfy: 'Comfy' };
+const styleEmojis = { sport: '🏃‍♀️', formal: '👔', laboral: '💼', salida: '✨', comfy: '😌' };
 
 async function buildResults() {
   const chips = document.getElementById('profile-chips');

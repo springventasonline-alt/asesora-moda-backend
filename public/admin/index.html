@@ -471,8 +471,10 @@ body {
               </div>
               <div class="photo-info">
                 <h4>Foto de la asesora</h4>
-                <p>Se muestra en el popup de bienvenida. Recomendamos una foto tuya o de tu equipo — genera más confianza que un avatar genérico.</p>
-                <button class="btn-upload" onclick="triggerPhotoUpload()">📷 Subir foto</button>
+                <p>Se muestra en el popup de bienvenida. Recomendamos una foto tuya — genera más confianza que un avatar genérico.</p>
+                <label class="field-label" style="display:block;margin-bottom:0.35rem;font-size:0.75rem;color:#888">URL de foto (recomendado — persiste entre reinicios)</label>
+                <input type="url" class="field-input" id="advisor-photo-url" placeholder="https://tu-foto.com/sil.jpg" oninput="previewPhotoUrl(this.value)" style="margin-bottom:0.6rem;font-size:0.8rem">
+                <button class="btn-upload" onclick="triggerPhotoUpload()" style="margin-top:0.25rem">📷 O subir archivo</button>
                 <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="loadPhoto(this)">
               </div>
             </div>
@@ -806,6 +808,19 @@ function showSection(name) {
 }
 
 // ── PHOTO ──
+function previewPhotoUrl(url) {
+  if (!url) return;
+  const preview = document.getElementById('advisor-photo-preview');
+  const placeholder = document.getElementById('photo-placeholder');
+  const prevImg = document.getElementById('prev-avatar-img');
+  preview.src = url;
+  preview.style.display = 'block';
+  placeholder.style.display = 'none';
+  if (prevImg) { prevImg.src = url; prevImg.style.display = 'block'; }
+  const prevEmoji = document.getElementById('prev-avatar-emoji');
+  if (prevEmoji) prevEmoji.style.display = 'none';
+}
+
 function triggerPhotoUpload() {
   document.getElementById('photo-input').click();
 }
@@ -926,6 +941,8 @@ function applyLoadedConfig(cfg) {
   if (cfg.color_accent) document.getElementById('color-accent').value = cfg.color_accent;
   if (cfg.font) document.getElementById('font-select').value = cfg.font;
   if (cfg.advisor_photo) {
+    const urlInput = document.getElementById('advisor-photo-url');
+    if (urlInput && !cfg.advisor_photo.startsWith('data:')) urlInput.value = cfg.advisor_photo;
     const preview = document.getElementById('advisor-photo-preview');
     preview.src = cfg.advisor_photo;
     preview.style.display = 'block';
@@ -948,9 +965,10 @@ async function saveConfig() {
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   const photoPreview = document.getElementById('advisor-photo-preview');
-  const advisorPhoto = photoPreview && photoPreview.src && photoPreview.src.startsWith('data:')
-    ? photoPreview.src
-    : undefined;
+  const photoUrlInput = document.getElementById('advisor-photo-url')?.value?.trim();
+  const advisorPhoto = photoUrlInput
+    ? photoUrlInput
+    : (photoPreview?.src?.startsWith('data:') ? photoPreview.src : undefined);
 
   const config = {
     advisor_name: document.getElementById('advisor-name')?.value,
