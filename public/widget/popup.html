@@ -841,7 +841,7 @@ body.embed-mode .welcome-video-wrap {
 }
 </style>
 </head>
-<body>
+<body><script>if(/[?&]embed=1/.test(location.search))document.body.classList.add('embed-mode');</script>
 
 <!-- ═══════════════════════════════
      CONFIG BAR
