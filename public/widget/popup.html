@@ -999,7 +999,7 @@ body.embed-mode .welcome-video-wrap {
   <!-- STEP 1: Tipo de cuerpo -->
   <div class="step active" id="s1">
     <div class="quiz-header">
-      <button class="back-btn" onclick="closePopup()">←</button>
+      <button class="back-btn" onclick="backToWelcome()">←</button>
       <span class="step-counter">PASO 1 DE 6</span>
     </div>
     <div class="quiz-title"><span id="step1-title-text">¿Cuál es tu silueta?</span></div>
@@ -1340,13 +1340,22 @@ function initWelcome() {
 }
 
 function closeWelcome() {
+  // X button: cerrar toda la experiencia (notifica al padre en modo embed)
   document.getElementById('welcome-overlay').style.display = 'none';
   if (IS_EMBED) notifyParentClose();
 }
 
 function startFromWelcome() {
-  closeWelcome();
+  // Botón "Empezar": solo ocultar la bienvenida y abrir el quiz en el mismo iframe
+  // NO notifica al padre — el iframe sigue abierto con el quiz
+  document.getElementById('welcome-overlay').style.display = 'none';
   openPopup();
+}
+
+function backToWelcome() {
+  // Flecha atrás desde step 1: volver a la bienvenida sin cerrar el iframe
+  closePopup();
+  document.getElementById('welcome-overlay').style.display = IS_EMBED ? 'flex' : 'none';
 }
 
 function loadAdvisorPhoto(input) {
