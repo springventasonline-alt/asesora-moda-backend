@@ -29,7 +29,7 @@ body.embed-mode { background: var(--bg); }
 body.embed-mode #config-bar,
 body.embed-mode .fake-store,
 body.embed-mode #popup-trigger { display: none !important; }
-body.embed-mode #welcome-overlay { display: flex !important; }
+body.embed-mode.config-ready #welcome-overlay { display: flex !important; }
 
 /* ══════════════════════════════
    FAKE STORE (demo background)
@@ -1384,7 +1384,8 @@ window.addEventListener('load', async () => {
   await loadRemoteConfig();
 
   if (IS_EMBED) {
-    document.body.classList.add('embed-mode');
+    // config-ready hace visible el welcome-overlay SOLO después de cargar la config
+    document.body.classList.add('embed-mode', 'config-ready');
     setTimeout(initWelcome, 300);
     return;
   }
