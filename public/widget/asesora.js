@@ -177,6 +177,8 @@
     trigger.id = TRIGGER_ID;
     trigger.type = 'button';
     trigger.setAttribute('aria-label', 'Abrir asesora de moda');
+    // Nace oculto — se muestra solo si NO se va a auto-abrir el popup
+    trigger.classList.add('hidden');
     applyTriggerConfig(trigger, config);
     trigger.addEventListener('click', function () {
       openPopup(appBase, storeId);
@@ -208,13 +210,23 @@
   }
 
   function maybeAutoOpen(appBase, storeId, config) {
-    if (config && config.show_popup === false) return;
+    var trigger = document.getElementById(TRIGGER_ID);
+    if (config && config.show_popup === false) {
+      // No auto-abrir — mostrar el botón flotante directamente
+      if (trigger) trigger.classList.remove('hidden');
+      return;
+    }
     var seenKey = 'asesora_welcome_seen_' + storeId;
-    if (sessionStorage.getItem(seenKey)) return;
+    if (sessionStorage.getItem(seenKey)) {
+      // Ya vio el popup en esta sesión — mostrar el botón directamente
+      if (trigger) trigger.classList.remove('hidden');
+      return;
+    }
+    // Primera visita: auto-abrir sin mostrar el botón primero
     setTimeout(function () {
       openPopup(appBase, storeId);
       sessionStorage.setItem(seenKey, '1');
-    }, 900);
+    }, 400);
   }
 
   function init() {
