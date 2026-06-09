@@ -11,7 +11,7 @@
     "color_primary": "#1A1A2E",
     "color_accent": "#C8956C",
     "font": "Cormorant Garamond",
-    "show_video": true,
+    "show_video": false,
     "show_popup": true,
     "show_price": true,
     "new_tab": true
