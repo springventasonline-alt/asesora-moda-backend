@@ -1,5 +1,6 @@
 /**
  * Asesora de Moda — Script LEGACY (sin NubeSDK)
+ * v6 — Railway, con fix de doble carga CDN
  */
 (function () {
   'use strict';
@@ -8,6 +9,14 @@
     console.warn('[asesora-moda] Script legacy requiere DOM.');
     return;
   }
+
+  // Marca de versión: si ya cargó una versión más nueva (Railway), la vieja (CDN) no hace nada
+  var SCRIPT_VERSION = 6;
+  if (window.__asesoraModa_version && window.__asesoraModa_version >= SCRIPT_VERSION) {
+    console.info('[asesora-moda] Ya cargada v' + window.__asesoraModa_version + ', saliendo.');
+    return;
+  }
+  window.__asesoraModa_version = SCRIPT_VERSION;
 
   var DEFAULT_APP_BASE = 'https://asesora-moda-backend-production.up.railway.app';
   var ROOT_ID = 'asesora-moda-root';
@@ -178,7 +187,11 @@
   }
 
   function mount(appBase, storeId, config) {
-    if (document.getElementById(ROOT_ID)) return;
+    // Eliminar instancia vieja (CDN u otra versión) para reemplazarla
+    var existing = document.getElementById(ROOT_ID);
+    if (existing) existing.remove();
+    var existingStyles = document.getElementById('asesora-moda-styles');
+    if (existingStyles) existingStyles.remove();
 
     injectStyles(config);
 
