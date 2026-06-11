@@ -687,19 +687,24 @@ body.embed-mode.config-ready #welcome-overlay { display: flex !important; }
   backdrop-filter: blur(6px);
   z-index: 99998;
   display: none;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  padding: 1rem;
   animation: fadeOverlay 0.4s ease;
 }
 #welcome-sheet {
   background: var(--bg);
   width: 100%;
-  max-width: 480px;
-  border-radius: 28px 28px 0 0;
-  padding: 0 0 2.5rem;
-  animation: slideUp 0.45s cubic-bezier(0.32,0.72,0,1);
+  max-width: 400px;
+  border-radius: 24px;
+  padding: 0 0 2rem;
+  animation: fadeScaleIn 0.35s cubic-bezier(0.32,0.72,0,1);
   position: relative;
   overflow: hidden;
+}
+@keyframes fadeScaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
 }
 .welcome-close {
   position: absolute; top: 1rem; right: 1rem;
@@ -711,8 +716,7 @@ body.embed-mode.config-ready #welcome-overlay { display: flex !important; }
 }
 .welcome-close:hover { background: rgba(0,0,0,0.15); }
 .welcome-handle {
-  width: 40px; height: 4px; background: #ddd;
-  border-radius: 2px; margin: 14px auto 0;
+  display: none;
 }
 .welcome-body {
   padding: 1.5rem 1.5rem 0;
